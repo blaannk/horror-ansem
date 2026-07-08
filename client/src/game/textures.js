@@ -1147,7 +1147,7 @@ export function makeRockTexture() {
 
 // Panneau explicatif du chalet : « rester dans la lumière — BONK craint le feu ».
 export function makeFireHintTexture() {
-  const w = 640;
+  const w = 760; // plus large → le titre tient en entier
   const h = 440;
   const canvas = document.createElement('canvas');
   canvas.width = w;
@@ -1170,8 +1170,8 @@ export function makeFireHintTexture() {
   ctx.fillStyle = '#ffcf6a';
   ctx.shadowColor = '#ff8a2a';
   ctx.shadowBlur = 24;
-  ctx.font = 'bold 66px Georgia, "Times New Roman", serif';
-  ctx.fillText('STAY IN THE LIGHT', w / 2, 92);
+  ctx.font = 'bold 54px Georgia, "Times New Roman", serif';
+  ctx.fillText('STAY IN THE LIGHT', w / 2, 88);
   ctx.shadowBlur = 0;
 
   // Flamme dessinée (simple) au centre.

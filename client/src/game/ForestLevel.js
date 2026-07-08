@@ -53,6 +53,8 @@ export class ForestLevel extends Level {
   // ---- Grille : chalet en bas, chemin serpentin ouvert vers la sortie en haut, arbres
   // (murs) parsemés avec des trous pour que BONK puisse se faufiler et fuir dans la forêt.
   #buildMaze() {
+    // RNG à graine FIXE → la forêt (densité des arbres, positions) est IDENTIQUE à chaque partie.
+    this.rng = mulberry32(0x5eed);
     const cx = Math.floor(COLS / 2);
     const maze = new Maze({
       cols: COLS,
@@ -121,7 +123,7 @@ export class ForestLevel extends Level {
     for (let r = 1; r < door.row; r++) {
       for (let c = 1; c < COLS - 1; c++) {
         if (grid[r][c] === 0) continue;
-        if (Math.random() < 0.4) grid[r][c] = 0;
+        if (this.rng() < 0.4) grid[r][c] = 0;
       }
     }
 
@@ -154,8 +156,13 @@ export class ForestLevel extends Level {
   // Arbres : un conifère par cellule-mur de la zone forêt (trunk + cône), instanciés.
   #buildTrees(meta) {
     const cells = [];
+    const cx = Math.floor(COLS / 2);
     for (let r = 0; r < meta.door.row; r++) {
-      for (let c = 0; c < COLS; c++) if (this.maze.isWall(c, r)) cells.push({ c, r });
+      for (let c = 0; c < COLS; c++) {
+        if (!this.maze.isWall(c, r)) continue;
+        if (r <= 6 && c >= cx - 2 && c <= cx + 2) continue; // pas d'arbres dans l'emprise de la mine
+        cells.push({ c, r });
+      }
     }
     const g = new THREE.Group();
     const trunkGeo = new THREE.CylinderGeometry(0.28, 0.44, 4.2, 6);
@@ -167,10 +174,10 @@ export class ForestLevel extends Level {
     const dummy = new THREE.Object3D();
     cells.forEach((t, i) => {
       const w = this.maze.cellToWorld(t.c, t.r);
-      const ox = (Math.random() - 0.5) * 1.6;
-      const oz = (Math.random() - 0.5) * 1.6;
-      const sc = 0.85 + Math.random() * 0.5;
-      const yaw = Math.random() * Math.PI * 2;
+      const ox = (this.rng() - 0.5) * 1.6;
+      const oz = (this.rng() - 0.5) * 1.6;
+      const sc = 0.85 + this.rng() * 0.5;
+      const yaw = this.rng() * Math.PI * 2;
       dummy.position.set(w.x + ox, 2.1 * sc, w.z + oz);
       dummy.rotation.set(0, yaw, 0);
       dummy.scale.set(sc, sc, sc);
@@ -308,13 +315,15 @@ export class ForestLevel extends Level {
     // Panneau explicatif « STAY IN THE LIGHT » AU-DESSUS DE LA PORTE (bien visible en sortant) :
     // BONK craint le feu → il faut aller de feu de camp en feu de camp.
     const hintTex = makeFireHintTexture();
-    const hintMat = new THREE.MeshStandardMaterial({ map: hintTex, emissive: 0xffffff, emissiveMap: hintTex, emissiveIntensity: 0.95, roughness: 0.9 });
+    const hintMat = new THREE.MeshStandardMaterial({ map: hintTex, emissive: 0xffffff, emissiveMap: hintTex, emissiveIntensity: 1.2, roughness: 0.9, side: THREE.DoubleSide });
     const rx = (doorX + doorW / 2 + maxX) / 2; // segment nord, à DROITE de la porte
-    const hint = new THREE.Mesh(new THREE.PlaneGeometry(2.9, 1.95), hintMat);
-    hint.position.set(rx, 2.15, minZ + 0.16); // à HAUTEUR DES YEUX (dans le champ dès le spawn)
+    const hint = new THREE.Mesh(new THREE.PlaneGeometry(3.7, 2.05), hintMat);
+    // NB : le mur nord (épaisseur 0.35) est centré sur minZ → sa face interne est à minZ+0.175.
+    // On place le panneau bien DEVANT (minZ+0.4) pour qu'il ne soit plus noyé dans le mur.
+    hint.position.set(rx, 2.15, minZ + 0.4);
     g.add(hint);
-    const hintLight = new THREE.PointLight(0xffca80, 2.2, 10, 1.5);
-    hintLight.position.set(rx, 2.4, minZ + 1.8);
+    const hintLight = new THREE.PointLight(0xffca80, 2.6, 11, 1.5);
+    hintLight.position.set(rx, 2.4, minZ + 2.0);
     g.add(hintLight);
     this.track(hintTex, hintMat);
 
@@ -502,11 +511,9 @@ export class ForestLevel extends Level {
     floorM.rotation.x = -Math.PI / 2;
     floorM.position.set(xC, 0.15, zMid);
     g.add(floorM);
-    const backGeo = new THREE.BoxGeometry(halfW * 2 + 1.6, H, 0.8);
-    const back = new THREE.Mesh(backGeo, rock);
-    back.position.set(xC, H / 2, zBack);
-    g.add(back);
-    this.track(sideGeo, ceilGeo, floorGeo, backGeo);
+    // PAS de mur du fond : le tunnel débouche sur les montagnes/brouillard → plus aucun mur ne
+    // masque la sortie ; le cadre « EXIT » flotte en bout de tunnel, bien visible.
+    this.track(sideGeo, ceilGeo, floorGeo);
 
     // Bouche de mine : cadre en madriers (montants + linteau) à l'entrée côté forêt.
     const woodTex = makeWoodTexture();
@@ -534,23 +541,25 @@ export class ForestLevel extends Level {
     this.track(mtnMat);
     // Uniquement DERRIÈRE le fond (au nord) : les anciens reliefs « de flanc » débordaient dans
     // le couloir et se traversaient (le bug de texture signalé à l'entrée) → supprimés.
+    // Reculées et rétrécies pour que leur base (rayon) NE PÉNÈTRE PLUS dans le tunnel :
+    // il faut 6·(distance en cases) > rayon → aucune partie du cône ne franchit le fond.
     const mtns = [
-      [xC, zBack + zStep * 3, 42, 60],
-      [xC - 34, zBack + zStep * 2, 30, 44],
-      [xC + 30, zBack + zStep * 2.5, 34, 52],
+      [xC, zBack + zStep * 5, 24, 54],
+      [xC - 34, zBack + zStep * 4, 20, 42],
+      [xC + 32, zBack + zStep * 4.5, 22, 48],
     ];
     for (const [mx, mz, rad, ht] of mtns) {
       const geo = new THREE.ConeGeometry(rad, ht, 5);
       const m = new THREE.Mesh(geo, mtnMat);
       m.position.set(mx, ht / 2 - 4, mz);
-      m.rotation.y = Math.random() * Math.PI;
+      m.rotation.y = this.rng() * Math.PI;
       g.add(m);
       this.track(geo);
     }
 
     // Cadre d'Ansem « EXIT » au fond, contre le mur nord (face à la forêt/au joueur).
     const faceYaw = zStep < 0 ? 0 : Math.PI; // normale du cadre orientée vers la forêt (−zStep)
-    const zFrame = zBack - zStep * 0.42; // juste devant le mur du fond, côté tunnel
+    const zFrame = zExit + zStep * 0.4; // bien DANS le tunnel, face au joueur (rien derrière ne le cache)
     const outward = -Math.sign(zStep) * 0.1; // pousse image/légende devant le cadre (vers le joueur)
     const ansemTex = new THREE.TextureLoader().load('/monster.png');
     ansemTex.colorSpace = THREE.SRGBColorSpace;
@@ -704,10 +713,15 @@ export class ForestLevel extends Level {
     if (this.chasing) {
       if (safe) {
         game.monster.fleeing = true;
-        game.monster.rushMult = 1.4; // s'enfuit vivement
+        game.monster.rushMult = 1.9; // s'enfuit vivement
         this.lunging = false;
         this.lungeT = 0;
+        // Dès qu'il s'est assez éloigné, il DISPARAÎT dans la forêt (se cache) tant que tu restes
+        // près du feu — au lieu d'attendre juste devant toi.
+        const dm = Math.hypot(game.monster.position.x - cam.x, game.monster.position.z - cam.z);
+        if (dm > SAFE_R * 3) game.monster.setVisible(false);
       } else {
+        game.monster.setVisible(true); // il ressurgit dès que tu quittes le feu
         game.monster.fleeing = false; // IL TE COURT DESSUS
         this.lungeT += dt;
         if (!this.lunging && this.lungeT > this.lungeGap) {
@@ -783,4 +797,14 @@ function eyelid(T) {
   if (T < 2.12) return lerp(0, 0.7, (T - 2.0) / 0.12);
   if (T < 2.28) return lerp(0.7, 0, (T - 2.12) / 0.16);
   return 0;
+}
+// RNG déterministe (mulberry32) : même graine → même séquence → forêt identique à chaque partie.
+function mulberry32(a) {
+  return function () {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
