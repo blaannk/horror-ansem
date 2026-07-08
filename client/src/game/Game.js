@@ -5,7 +5,18 @@ import { AudioManager } from './AudioManager.js';
 import { Hud } from '../ui/Hud.js';
 import { EndScreen } from '../ui/EndScreen.js';
 import { LEVELS } from './levels.js';
-import { CELL, MONSTER_CATCH_DIST, DETECT_MAX, DETECT_MIN, PLAYER_FAST_FROM, PLAYER_BOOST_MAX } from '../config.js';
+import { chapterReached, bumpLocalMaxChapter } from './progress.js';
+import {
+  CELL,
+  MONSTER_CATCH_DIST,
+  DETECT_MAX,
+  DETECT_MIN,
+  PLAYER_FAST_FROM,
+  PLAYER_BOOST_MAX,
+  COMPASS_SANITY,
+  MINIMAP_SANITY,
+  saveConfig,
+} from '../config.js';
 
 const PROX_FAR = CELL * 6;
 
@@ -14,10 +25,11 @@ const PROX_FAR = CELL * 6;
 // chaque Level fournit son maze + décors et pilote ses propres animations/déclencheurs.
 
 export class Game {
-  constructor(container, config, onExitToMenu) {
+  constructor(container, config, onExitToMenu, startIndex = 0) {
     this.container = container;
     this.config = config;
     this.onExitToMenu = onExitToMenu;
+    this.startIndex = Math.max(0, Math.min(LEVELS.length - 1, startIndex | 0)); // niveau de départ (sélection menu)
     this.state = 'ready'; // ready | running | paused | transition | over
     this.inputLocked = false;
     this.started = false;
@@ -26,6 +38,15 @@ export class Game {
     this.levelIndex = 0;
     this.level = null;
     this.sanity = clamp01(config.sanityStart ?? 1);
+
+    // Objectifs / mécaniques niveau 1.
+    this.keysCollected = 0;
+    this.keysTotal = 0;
+    this.flashlightOn = true;
+    this.playerHidden = false; // caché dans un coin, lampe éteinte, immobile
+    this.playerSafe = false; // à portée d'un feu de camp (forêt) → intraquable
+    this._fall = null; // état de l'animation de chute (trou → forêt)
+    this._ambientScreamT = 18; // minuterie des cris d'ambiance (par niveau)
 
     this.#setupRenderer();
     this.#setupScene();
@@ -68,6 +89,71 @@ export class Game {
   }
   lose() {
     this.#end(false);
+  }
+
+  // Chute cinématique dans le trou de sortie : gèle l'input, fait plonger la caméra en
+  // accélérant + fondu au noir + whoosh, puis exécute onDone (typiquement advance()).
+  fallThrough(onDone) {
+    if (this._fall || this.state === 'over') return;
+    this.inputLocked = true;
+    this.audio.silenceAmbience();
+    this.audio.fallWhoosh();
+    // On fige la souris pendant la cinématique pour ne pas contrarier la caméra scriptée.
+    if (this.player.controls) this.player.controls.enabled = false;
+    // Cible = centre du trou (pour plonger DANS le puits, pas à travers le sol).
+    const cam = this.camera.position;
+    let hx = cam.x;
+    let hz = cam.z;
+    const ex = this.level?.maze?.exit;
+    if (ex) {
+      const w = this.level.maze.cellToWorld(ex.col, ex.row);
+      hx = w.x;
+      hz = w.z;
+    }
+    this._fall = { t: 0, dur: 1.7, sx: cam.x, sz: cam.z, sy: cam.y, hx, hz, onDone, done: false };
+  }
+
+  #updateFall(dt) {
+    const f = this._fall;
+    f.t += dt;
+    const k = Math.min(1, f.t / f.dur);
+    const cam = this.camera;
+    // Phase A (0→0.22) : on glisse au-dessus du trou et le regard bascule vers le bas.
+    const sRaw = clamp01(k / 0.22);
+    const slide = sRaw * sRaw * (3 - 2 * sRaw);
+    cam.position.x = f.sx + (f.hx - f.sx) * slide;
+    cam.position.z = f.sz + (f.hz - f.sz) * slide;
+    cam.rotation.x = -1.35 * slide; // regarde presque droit dans le trou
+    // Phase B : plongée accélérée dans le puits + vrille.
+    const plunge = k <= 0.22 ? 0 : (k - 0.22) / 0.78;
+    cam.position.y = f.sy - plunge * plunge * 26;
+    cam.rotation.z += dt * 3.2;
+    this.setFade(clamp01((k - 0.35) / 0.4)); // noir avant d'atteindre le fond
+    if (k >= 1 && !f.done) {
+      f.done = true;
+      const cb = f.onDone;
+      this._fall = null;
+      if (this.player.controls) this.player.controls.enabled = true;
+      cam.rotation.set(0, cam.rotation.y, 0);
+      cb?.();
+    }
+  }
+
+  // Ramassage d'une clé PEPE : quand toutes sont réunies, la sortie (le trou) s'active.
+  // Niveau muet : on garde le son + le compteur HUD, mais AUCUNE annonce texte.
+  collectKey() {
+    this.keysCollected++;
+    this.audio.coinPickup();
+    this.hud.setKeys(this.keysCollected, this.keysTotal);
+    if (this.keysCollected >= this.keysTotal) {
+      this.setPortalActive(true); // active le trou (sans annonce)
+    }
+  }
+
+  // Active/désactive visuellement + logiquement le portail de sortie.
+  setPortalActive(active) {
+    if (this.level) this.level.portalActive = active;
+    this.level?.renderer?.setPortalActive?.(active);
   }
 
   #setupRenderer() {
@@ -123,12 +209,41 @@ export class Game {
     this.pause.innerHTML = `
       <div class="overlay-box">
         <h2>Paused</h2>
+        <div class="pause-slider">
+          <label>Mental health: <span data-sanity-val>100%</span></label>
+          <input type="range" min="0" max="100" step="1" value="100" data-sanity-slider />
+        </div>
+        <div class="pause-slider">
+          <label>Volume: <span data-volume-val>80%</span></label>
+          <input type="range" min="0" max="100" step="1" value="80" data-volume-slider />
+        </div>
         <button class="btn-primary" data-resume>Resume</button>
         <button class="btn-ghost" data-quit>Back to menu</button>
       </div>`;
     this.container.appendChild(this.pause);
     this.pause.querySelector('[data-resume]').addEventListener('click', () => this.player.controls.lock());
     this.pause.querySelector('[data-quit]').addEventListener('click', () => this.#exitToMenu());
+
+    // Curseur de santé mentale (accessible dès la pause / Échap).
+    this.sanitySlider = this.pause.querySelector('[data-sanity-slider]');
+    this.sanityValEl = this.pause.querySelector('[data-sanity-val]');
+    this.sanitySlider.addEventListener('input', () => {
+      this.sanity = clamp01(Number(this.sanitySlider.value) / 100);
+      this.sanityValEl.textContent = `${Math.round(this.sanity * 100)}%`;
+    });
+
+    // Curseur de volume (maître) — persistant via la config.
+    this.volumeSlider = this.pause.querySelector('[data-volume-slider]');
+    this.volumeValEl = this.pause.querySelector('[data-volume-val]');
+    this.volumeSlider.value = String(Math.round(clamp01(this.config.volume ?? 0.8) * 100));
+    this.volumeValEl.textContent = `${this.volumeSlider.value}%`;
+    this.volumeSlider.addEventListener('input', () => {
+      const v = clamp01(Number(this.volumeSlider.value) / 100);
+      this.config.volume = v;
+      this.audio.setVolume(v);
+      this.volumeValEl.textContent = `${Math.round(v * 100)}%`;
+      saveConfig(this.config);
+    });
 
     this.flashEl = document.createElement('div');
     this.flashEl.className = 'cinematic-flash';
@@ -192,16 +307,16 @@ export class Game {
   screamer(onDone) {
     this.inputLocked = true;
     this.screamerEl.classList.remove('hidden');
-    this.audio.sting('scream');
+    this.audio.ansemScream();
     this.flash();
     clearTimeout(this._screamT);
     this._screamT = setTimeout(() => {
       this.screamerEl.classList.add('hidden');
       this.inputLocked = false;
-      this.bigText('RUN', 1800);
       onDone?.();
     }, 1100);
   }
+
 
   #setupSanityControl() {
     window.escapeBonk = {
@@ -216,6 +331,20 @@ export class Game {
       else if (e.key === ']') this.sanity = clamp01(this.sanity + 0.05);
     };
     document.addEventListener('keydown', this._onSanityKey);
+
+    // Lampe torche (F). La boussole n'est plus une touche : elle s'active seule à basse santé.
+    this._onAbilityKey = (e) => {
+      if (this.state !== 'running' || this.inputLocked) return;
+      const k = (e.key || '').toLowerCase();
+      if (k === 'f') this.#toggleFlashlight();
+      else if (k === 'e') this.level?.onInteract?.(this); // interaction (bouton, trophée…)
+    };
+    document.addEventListener('keydown', this._onAbilityKey);
+  }
+
+  #toggleFlashlight() {
+    this.flashlightOn = !this.flashlightOn;
+    this.hud.setFlashlight(this.flashlightOn);
   }
 
   #begin() {
@@ -230,7 +359,7 @@ export class Game {
     if (this.state === 'over') return;
     if (!this.started) {
       this.started = true;
-      this.#startLevel(0);
+      this.#startLevel(this.startIndex);
       this.state = 'running';
     } else if (this.state === 'paused') {
       this.state = 'running';
@@ -240,10 +369,18 @@ export class Game {
   #onUnlock() {
     if (this.state === 'running') {
       this.state = 'paused';
+      this.#syncSanitySlider();
       this.pause.classList.remove('hidden');
       this.audio.suspend();
       this.#clearSubtitle();
     }
+  }
+
+  #syncSanitySlider() {
+    if (!this.sanitySlider) return;
+    const pct = Math.round(clamp01(this.sanity) * 100);
+    this.sanitySlider.value = String(pct);
+    this.sanityValEl.textContent = `${pct}%`;
   }
 
   #startLevel(i) {
@@ -252,15 +389,19 @@ export class Game {
       this.level.dispose();
     }
     this.#clearSubtitle();
-    this.audio.neonBuzz(false);
-    this.audio.keyboardAmbience(false);
+    // Coupe les sons transitoires du niveau précédent (la musique est gérée track-aware plus bas).
+    this.audio.silenceTransients();
 
     const level = new LEVELS[i]();
     level.build(this);
     this.level = level;
+    // Musique par niveau : ne coupe la piste précédente que si la nouvelle DIFFÈRE (la musique
+    // du chapitre 1 reste ainsi continue à travers ses sous-niveaux). enter() la (re)démarre.
+    if (this.audio.currentMusicName() !== (level.musicTrack || null)) this.audio.stopMusic();
     this.levelIndex = i;
     this.scene.add(level.group);
 
+    this.player.terrain = level.terrain || null; // hauteurs/trous/plafonds bas (niveau 3) ; sinon plat
     this.player.setMaze(level.maze);
     this.monster.setMaze(level.maze);
     if (level.monsterMode === 'chase' && level.maze.spawn) {
@@ -269,6 +410,28 @@ export class Game {
     } else {
       this.monster.setMode('none');
     }
+
+    // Réinitialise les objectifs / mécaniques pour ce niveau.
+    this.keysCollected = 0;
+    this.keysTotal = level.coins?.length ?? 0;
+    this.flashlightOn = true;
+    this.playerHidden = false;
+    this.playerSafe = false;
+    this._fall = null;
+    // Cadence des cris d'ambiance propre au niveau ([min,max] en s ; défaut ~14-26 s).
+    {
+      const [smin, smax] = level.screamEvery ?? [14, 26];
+      this._ambientScreamT = smin + Math.random() * (smax - smin); // premier cri
+    }
+    // Monstre par défaut = Ansem (niveaux crypto) ; la forêt bascule en BONK dans enter().
+    this.monster.fleeing = false;
+    this.monster.rushMult = 1;
+    this.monster.setSkin('ansem');
+    this.audio.setMonsterVoice('ansem');
+    this.hud.setKeys(0, this.keysTotal);
+    this.hud.setFlashlight(true);
+    // Portail verrouillé tant qu'il reste des clés (actif d'emblée s'il n'y en a pas).
+    if (level.portal) this.setPortalActive(this.keysTotal === 0);
 
     this.setObjective(level.objective || '');
     this.inputLocked = false;
@@ -281,6 +444,20 @@ export class Game {
     cam.getWorldDirection(forward);
     this.flashlight.position.copy(cam.position);
     this.flashTarget.position.copy(cam.position).addScaledVector(forward, 5);
+    this.flashlight.visible = this.flashlightOn;
+  }
+
+  // Caché = lampe éteinte + immobile + tapi dans un coin (murs sur deux côtés perpendiculaires).
+  // Dans cet état, Ansem ne te détecte plus et « passe devant » toi.
+  #computeHidden() {
+    if (this.flashlightOn || this.player.moving || !this.level?.maze) return false;
+    const { col, row } = this.level.maze.worldToCell(this.camera.position.x, this.camera.position.z);
+    const m = this.level.maze;
+    const n = m.isWall(col, row - 1);
+    const s = m.isWall(col, row + 1);
+    const e = m.isWall(col + 1, row);
+    const w = m.isWall(col - 1, row);
+    return (n && e) || (n && w) || (s && e) || (s && w);
   }
 
   #computeAudioCues() {
@@ -305,16 +482,50 @@ export class Game {
     const elapsedSec = this.elapsedMs / 1000;
 
     if (this.level?.renderer) this.level.renderer.update(dt, elapsedSec);
+    if (this._fall) this.#updateFall(dt);
 
     if (this.state === 'running') {
       if (!this.inputLocked) this.elapsedMs += dt * 1000;
       this.level.update(dt, this);
-      // Haute santé mentale → le joueur devient plus rapide (facile à partir de 80 %).
-      this.player.speedMult = playerSpeedMult(this.sanity);
+      // Si le niveau lui-même a mis fin à la partie (ex. décompte d'effondrement du niveau 3),
+      // on sort tout de suite : l'audio.update de cette frame ne doit pas relancer l'ambiance
+      // que #end() vient de couper (silenceAmbience).
+      if (this.state !== 'running') {
+        this.renderer.render(this.scene, this.camera);
+        return;
+      }
+
+      // Cris d'ambiance aléatoires, propres au niveau (de temps en temps).
+      if (this.level.ambientScreams?.length && !this.inputLocked && !this._fall) {
+        this._ambientScreamT -= dt;
+        if (this._ambientScreamT <= 0) {
+          const list = this.level.ambientScreams;
+          this.audio.playSample(list[(Math.random() * list.length) | 0], { gain: 0.55 });
+          const [imin, imax] = this.level.screamEvery ?? [16, 38];
+          this._ambientScreamT = imin + Math.random() * (imax - imin);
+        }
+      }
+      // Difficulté calée sur le seuil du niveau (feasibleSanity : L1 = 0.3, L2 = 0.6, …) :
+      // jouable à partir du seuil, quasi impossible en dessous (BONK plus rapide + te repère
+      // toujours) ; au-dessus, le joueur accélère → de plus en plus facile.
+      const feasible = this.level?.feasibleSanity ?? 0.5;
+      const s = clamp01(this.sanity);
+      this.player.speedMult = playerSpeedMult(s, feasible);
       if (!this.inputLocked) this.player.update(dt);
 
-      this.monster.speedMult = 1 + this.config.sanityFear * (1 - clamp01(this.sanity));
-      this.monster.detectRadius = detectRadius(this.sanity);
+      // Vitesse de BONK/Ansem pilotée par la santé mentale, avec une FALAISE au seuil du niveau :
+      // sous feasibleSanity → nettement plus rapide que le joueur (quasi impossible) ; au seuil
+      // ou au-dessus → base (échappable, d'autant plus que la santé monte).
+      this.monster.speedMult =
+        s < feasible ? 1.6 + this.config.sanityFear * ((feasible - s) / feasible) : 1;
+      // Niveaux « relentless » (poursuite scénarisée : couloir unique) → le monstre te repère
+      // toujours (la santé mentale ne pilote alors que sa VITESSE, pas sa capacité à te trouver).
+      this.monster.detectRadius = this.level?.relentless ? DETECT_MAX : detectRadius(s, feasible);
+      this.playerHidden = this.#computeHidden();
+      this.monster.hidden = this.playerHidden;
+      this.monster.lit = this.flashlightOn; // lampe allumée → le joueur se trahit (repérable)
+      // La fuite/charge est pilotée par le niveau (forêt). Sécurité : à un feu → fuite forcée.
+      if (this.playerSafe) this.monster.fleeing = true;
       this.monster.update(dt, this.camera.position, this.elapsedMs / 1000);
       this.#updateFlashlight();
 
@@ -329,6 +540,7 @@ export class Game {
         // dès qu'il t'a perdu (errance), il se coupe même s'il est encore proche.
         proximity = this.monster.hunting ? cues.proximity : 0;
       }
+      if (this._fall) proximity = 0; // pendant la chute : pas de bruit/vignette de chasse
       this.audio.update(dt, {
         proximity,
         pan,
@@ -336,9 +548,10 @@ export class Game {
         playerSprinting: this.player.sprinting,
         monsterMoving: this.monster.moving,
       });
-      // Boussole : angle vers la sortie relatif au regard (uniquement quand il y a un portail).
+      // Boussole : angle vers la sortie relatif au regard — disponible tant que la santé
+      // mentale reste ≥ COMPASS_SANITY (de 20 % à 100 %) ; elle se perd en dessous.
       let exitAngle = null;
-      if (this.level.portal) {
+      if (this.level.portal && this.sanity >= COMPASS_SANITY) {
         const ex = this.level.maze.cellToWorld(this.level.maze.exit.col, this.level.maze.exit.row);
         const fwd = new THREE.Vector3();
         this.camera.getWorldDirection(fwd);
@@ -353,13 +566,24 @@ export class Game {
         const side = dx * -fwd.z + dz * fwd.x; // vecteur droite = (-fwd.z, 0, fwd.x)
         exitAngle = Math.atan2(side, ahead);
       }
-      this.hud.update({ elapsedMs: this.elapsedMs, sanity: this.sanity, proximity, exitAngle });
+      // Carte des PEPE : disponible tant que la santé mentale reste ≥ MINIMAP_SANITY
+      // (de 30 % à 100 %) ; elle se perd en dessous. (Niveaux à clés uniquement.)
+      let minimap = null;
+      if (this.sanity >= MINIMAP_SANITY && this.level?.coins?.length) {
+        const maze = this.level.maze;
+        const pc = maze.worldToCell(this.camera.position.x, this.camera.position.z);
+        const fwd = new THREE.Vector3();
+        this.camera.getWorldDirection(fwd);
+        const pepes = this.level.coins.filter((c) => !c.collected).map((c) => ({ col: c.col, row: c.row }));
+        minimap = { maze, player: pc, pepes, exit: maze.exit, fx: fwd.x, fz: fwd.z };
+      }
+      this.hud.update({ elapsedMs: this.elapsedMs, sanity: this.sanity, proximity, exitAngle, minimap });
 
       // Conditions de fin EN DERNIER : ainsi silenceAmbience() (dans #end) n'est pas
       // réécrasé par l'audio.update de cette frame → le son se coupe bien à la capture.
-      if (this.monster.mode === 'chase' && dist < MONSTER_CATCH_DIST) {
+      if (this.monster.mode === 'chase' && dist < MONSTER_CATCH_DIST && !this.playerHidden && !this.playerSafe && !this._fall) {
         this.lose();
-      } else if (this.level.portal) {
+      } else if (this.level.portal && this.level.portalActive && this.level.exitKind !== 'hole') {
         const e = this.level.maze.cellToWorld(this.level.maze.exit.col, this.level.maze.exit.row);
         if (Math.hypot(e.x - this.camera.position.x, e.z - this.camera.position.z) < CELL * 0.7) this.win();
       }
@@ -375,14 +599,42 @@ export class Game {
     this.state = 'over';
     this.#clearSubtitle();
     this.audio.silenceAmbience(); // coupe le bruit continu quand Ansem t'a eu (ou à l'évasion)
-    this.audio.sting(won ? 'win' : 'catch');
-    this.audio.update(0, { proximity: 0, pan: 0 });
     if (this.player.controls.isLocked) this.player.controls.unlock();
 
+    if (!won) {
+      // CAPTURE : screamer plein écran avant l'écran de fin — visage/son selon le monstre
+      // (Ansem dans le crypto, BONK dans la forêt).
+      const bonk = this.monster.skin === 'bonk';
+      const img = this.screamerEl.querySelector('img');
+      if (img) img.src = bonk ? '/bonk-face.png' : '/monster.png';
+      this.screamerEl.classList.remove('hidden');
+      if (bonk) this.audio.bonkScream();
+      else this.audio.ansemScream();
+      this.flash();
+      clearTimeout(this._endScreamT);
+      this._endScreamT = setTimeout(() => {
+        this.screamerEl.classList.add('hidden');
+        if (!bonk) this.audio.sting('catch'); // BONK : seul le screamer fourni joue (pas de sting)
+        this.#showEndScreen(false);
+      }, 1100);
+      return;
+    }
+
+    this.audio.sting('win');
+    this.audio.update(0, { proximity: 0, pan: 0 });
+    this.#showEndScreen(true);
+  }
+
+  #showEndScreen(won) {
+    this.audio.update(0, { proximity: 0, pan: 0 });
+    const levelReached = this.levelIndex + 1;
+    // Déblocage local des fenêtres de lore : on retient le chapitre le plus loin atteint.
+    bumpLocalMaxChapter(chapterReached(levelReached));
     new EndScreen(this.container, {
       won,
       timeMs: this.elapsedMs,
       config: this.config,
+      levelReached,
       onReplay: () => this.#exitToMenu(true),
       onMenu: () => this.#exitToMenu(false),
     });
@@ -401,8 +653,11 @@ export class Game {
 
   destroy() {
     cancelAnimationFrame(this._raf);
+    clearTimeout(this._endScreamT);
+    clearTimeout(this._screamT);
     window.removeEventListener('resize', this._onResize);
     document.removeEventListener('keydown', this._onSanityKey);
+    document.removeEventListener('keydown', this._onAbilityKey);
     if (window.escapeBonk) delete window.escapeBonk;
     this.#clearSubtitle();
     if (this.level) this.level.dispose();
@@ -427,20 +682,20 @@ function clamp01(v) {
   return Math.max(0, Math.min(1, v));
 }
 
-// Rayon de détection selon la santé mentale : < 0.5 → max (repère quasi toujours) ;
-// 0.5→1 → rétrécit de DETECT_MAX à DETECT_MIN.
-function detectRadius(sanity) {
+// Rayon de détection selon la santé mentale, calé sur le seuil du niveau : au seuil ou en
+// dessous → max (te repère quasi toujours) ; au-dessus → rétrécit de DETECT_MAX à DETECT_MIN.
+function detectRadius(sanity, feasible = 0.5) {
   const s = clamp01(sanity);
-  if (s < 0.5) return DETECT_MAX;
-  const t = (s - 0.5) / 0.5;
+  if (s <= feasible) return DETECT_MAX;
+  const t = (s - feasible) / Math.max(0.001, 1 - feasible);
   return DETECT_MAX + (DETECT_MIN - DETECT_MAX) * t;
 }
 
-// Vitesse du joueur selon la santé mentale : ×1 jusqu'à PLAYER_FAST_FROM, puis monte
-// jusqu'à ×(1 + PLAYER_BOOST_MAX) à 100 % → haute santé = nettement plus facile.
-function playerSpeedMult(sanity) {
+// Vitesse du joueur : ×1 jusqu'au seuil du niveau, puis monte jusqu'à ×(1 + PLAYER_BOOST_MAX)
+// à 100 % de santé → au-dessus du seuil, de plus en plus facile.
+function playerSpeedMult(sanity, feasible = PLAYER_FAST_FROM) {
   const s = clamp01(sanity);
-  if (s <= PLAYER_FAST_FROM) return 1;
-  const t = (s - PLAYER_FAST_FROM) / (1 - PLAYER_FAST_FROM);
+  if (s <= feasible) return 1;
+  const t = (s - feasible) / Math.max(0.001, 1 - feasible);
   return 1 + PLAYER_BOOST_MAX * t;
 }

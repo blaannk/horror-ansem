@@ -1,13 +1,16 @@
 :root {
-  --bonk: #ff8a1e;
-  --bonk-dim: #b85e10;
+  --bonk: #e11d2b; /* accent principal — ROUGE (orange abandonné) */
+  --bonk-dim: #7d1218;
   --exit: #39ff88;
   --blood: #ff2f2f;
   --bg: #050507;
   --panel: rgba(14, 14, 20, 0.92);
   --text: #e7e7ee;
   --muted: #8a8a99;
+  --drip: #7a0d14; /* rouge sombre pour les coulures des fenêtres */
   --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-horror: 'Nosifer', 'Rock Salt', cursive; /* menu : horreur épaisse & dégoulinante */
+  --font-ui: 'Barlow Condensed', 'Segoe UI', sans-serif; /* fenêtres : UI condensée */
 }
 
 * {
@@ -56,7 +59,7 @@ button {
   border: 1px solid #26262f;
   border-radius: 16px;
   padding: 28px 30px 32px;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7), inset 0 0 60px rgba(255, 138, 30, 0.04);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7), inset 0 0 60px rgba(225, 29, 43, 0.04);
 }
 
 .menu-title {
@@ -64,7 +67,7 @@ button {
   font-weight: 900;
   letter-spacing: 2px;
   text-align: center;
-  text-shadow: 0 0 24px rgba(255, 138, 30, 0.35);
+  text-shadow: 0 0 24px rgba(225, 29, 43, 0.35);
 }
 .menu-title .bonk {
   color: var(--bonk);
@@ -109,7 +112,7 @@ button {
   background: var(--bonk);
   color: #1a1006;
   border-color: var(--bonk);
-  box-shadow: 0 0 20px rgba(255, 138, 30, 0.4);
+  box-shadow: 0 0 20px rgba(225, 29, 43, 0.4);
 }
 
 .sliders {
@@ -148,7 +151,7 @@ input[type='range']::-webkit-slider-thumb {
   border-radius: 50%;
   background: var(--bonk);
   cursor: pointer;
-  box-shadow: 0 0 10px rgba(255, 138, 30, 0.6);
+  box-shadow: 0 0 10px rgba(225, 29, 43, 0.6);
 }
 input[type='range']::-moz-range-thumb {
   width: 16px;
@@ -186,15 +189,15 @@ input[type='range']::-moz-range-thumb {
   font-weight: 900;
   letter-spacing: 2px;
   color: #1a1006;
-  background: linear-gradient(180deg, #ffa53e, var(--bonk));
+  background: linear-gradient(180deg, #ff4453, var(--bonk));
   border: none;
   border-radius: 12px;
-  box-shadow: 0 0 30px rgba(255, 138, 30, 0.45);
+  box-shadow: 0 0 30px rgba(225, 29, 43, 0.45);
   transition: transform 0.1s, box-shadow 0.2s;
 }
 .btn-play:hover {
   transform: translateY(-2px);
-  box-shadow: 0 0 44px rgba(255, 138, 30, 0.7);
+  box-shadow: 0 0 44px rgba(225, 29, 43, 0.7);
 }
 .menu-controls {
   text-align: center;
@@ -248,89 +251,106 @@ input[type='range']::-moz-range-thumb {
   text-shadow: 0 0 10px rgba(0, 0, 0, 0.9);
 }
 /* Boussole : pointe vers la sortie (visible sur la grande map). */
+/* Boussole : cadran rond épinglé EN BAS AU CENTRE, aiguille verte pointant la sortie. */
 .hud-compass {
   position: absolute;
-  top: 92px;
+  bottom: 108px;
   left: 50%;
   transform: translateX(-50%);
-  width: 66px;
-  height: 66px;
+  width: 88px;
+  height: 88px;
   border-radius: 50%;
-  border: 2px solid rgba(57, 255, 136, 0.55);
-  background: rgba(0, 0, 0, 0.45);
-  box-shadow: 0 0 14px rgba(57, 255, 136, 0.25), inset 0 0 14px rgba(0, 0, 0, 0.6);
+  border: 2px solid rgba(57, 255, 136, 0.5);
+  background: radial-gradient(circle at 50% 42%, rgba(22, 44, 32, 0.7), rgba(0, 0, 0, 0.72));
+  box-shadow: 0 0 20px rgba(57, 255, 136, 0.28), inset 0 0 18px rgba(0, 0, 0, 0.7);
   display: none;
 }
 .hud-compass.on {
   display: block;
+}
+/* Moyeu central fixe. */
+.hud-compass::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  background: rgba(210, 255, 225, 0.85);
+  box-shadow: 0 0 8px rgba(57, 255, 136, 0.85);
 }
 .hud-compass-arrow {
   position: absolute;
   inset: 0;
   transition: transform 0.12s linear;
 }
+/* Aiguille (pointe vers la sortie). */
 .hud-compass-arrow::before {
   content: '';
   position: absolute;
-  top: 5px;
+  top: 9px;
   left: 50%;
   transform: translateX(-50%);
   width: 0;
   height: 0;
   border-left: 9px solid transparent;
   border-right: 9px solid transparent;
-  border-bottom: 20px solid var(--exit);
-  filter: drop-shadow(0 0 5px rgba(57, 255, 136, 0.9));
+  border-bottom: 30px solid var(--exit);
+  filter: drop-shadow(0 0 7px rgba(57, 255, 136, 0.95));
+}
+/* Contre-aiguille sombre (queue). */
+.hud-compass-arrow::after {
+  content: '';
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 5px;
+  height: 26px;
+  border-radius: 3px;
+  background: rgba(120, 150, 135, 0.45);
 }
 .hud-compass-label {
   position: absolute;
-  bottom: 7px;
+  bottom: -22px;
   left: 0;
   right: 0;
   text-align: center;
+  font-size: 0.62rem;
+  letter-spacing: 3px;
+  color: var(--exit);
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.95);
+}
+/* Mini-carte des PEPE : n'apparaît qu'à basse santé mentale (≤ 30 %). */
+.hud-minimap {
+  position: absolute;
+  top: 96px;
+  left: 18px;
+  padding: 8px;
+  background: linear-gradient(#0a0e0f, #030506);
+  border: 1px solid rgba(120, 255, 150, 0.25);
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+}
+.hud-minimap[hidden] {
+  display: none;
+}
+.hud-minimap-title {
   font-size: 0.6rem;
   letter-spacing: 2px;
-  color: var(--exit);
-  text-shadow: 0 0 6px rgba(0, 0, 0, 0.9);
-}
-.hud-sanity {
-  position: absolute;
-  bottom: 48px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 260px;
-  text-align: center;
-}
-.hud-sanity-label {
-  display: block;
-  font-size: 0.68rem;
-  letter-spacing: 2px;
   text-transform: uppercase;
-  color: rgba(220, 230, 240, 0.85);
-  margin-bottom: 4px;
-  text-shadow: 0 0 8px rgba(0, 0, 0, 0.9);
+  color: rgba(155, 255, 90, 0.9);
+  text-align: center;
+  margin-bottom: 6px;
 }
-.hud-sanity-track {
-  width: 100%;
-  height: 10px;
-  background: rgba(255, 255, 255, 0.12);
+.hud-minimap-canvas {
+  display: block;
+  width: 190px;
+  height: 190px;
   border-radius: 6px;
-  overflow: hidden;
-}
-.hud-sanity-fill {
-  height: 100%;
-  width: 100%;
-  background: hsl(155, 75%, 50%);
-  border-radius: 6px;
-  transition: width 0.15s linear, background 0.25s linear;
-}
-.hud-sanity-fill.low {
-  box-shadow: 0 0 12px 2px rgba(255, 40, 40, 0.7);
-  animation: sanity-pulse 0.7s ease-in-out infinite;
-}
-@keyframes sanity-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+  background: #05070a;
 }
 .hud-stamina {
   position: absolute;
@@ -417,6 +437,13 @@ input[type='range']::-moz-range-thumb {
   height: 100%;
   object-fit: cover;
   filter: contrast(1.3) saturate(1.2) brightness(1.05);
+  transform-origin: center 42%;
+  animation: screamer-lunge 0.42s ease-in-out infinite alternate;
+  will-change: transform, filter;
+}
+@keyframes screamer-lunge {
+  0% { transform: scale(1); filter: contrast(1.3) saturate(1.2) brightness(1); }
+  100% { transform: scale(1.28) rotate(1deg); filter: contrast(1.7) saturate(1.5) brightness(1.25); }
 }
 .screamer.hidden {
   display: none;
@@ -532,6 +559,29 @@ input[type='range']::-moz-range-thumb {
   margin-bottom: 20px;
 }
 
+/* Curseurs (santé mentale / volume) dans l'écran de pause. */
+.pause-slider {
+  margin: 6px auto 18px;
+  max-width: 300px;
+}
+.pause-slider label {
+  display: block;
+  font-size: 0.82rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(220, 230, 240, 0.85);
+  margin-bottom: 10px;
+}
+.pause-slider label span {
+  color: #ff7b84;
+  font-weight: 800;
+}
+.pause-slider input[type='range'] {
+  width: 100%;
+  accent-color: var(--bonk);
+  cursor: pointer;
+}
+
 .btn-primary {
   padding: 13px 26px;
   font-size: 1rem;
@@ -540,7 +590,7 @@ input[type='range']::-moz-range-thumb {
   background: var(--bonk);
   border: none;
   border-radius: 10px;
-  box-shadow: 0 0 20px rgba(255, 138, 30, 0.4);
+  box-shadow: 0 0 20px rgba(225, 29, 43, 0.4);
 }
 .btn-ghost {
   padding: 13px 26px;
@@ -565,10 +615,14 @@ input[type='range']::-moz-range-thumb {
   inset: 0;
   display: grid;
   place-items: center;
-  z-index: 12;
-  background: rgba(3, 3, 6, 0.9);
-  overflow-y: auto;
+  z-index: 60;
+  background: rgba(3, 3, 6, 0.92);
+  overflow: hidden; /* pas de scroll : la fenêtre est centrée dans l'écran */
   padding: 24px;
+}
+.end-panel {
+  max-height: calc(100vh - 48px); /* tient toujours à l'écran ; scroll interne seulement si vraiment nécessaire */
+  overflow-y: auto;
 }
 .endscreen.lose {
   background: radial-gradient(circle at center, rgba(60, 0, 0, 0.65), rgba(3, 3, 6, 0.95));
@@ -671,4 +725,1116 @@ input[type='range']::-moz-range-thumb {
 .end-actions {
   display: flex;
   justify-content: center;
+}
+
+/* ============================================================
+   LANDING / HUB  (page principale, thème horreur)
+   ============================================================ */
+.bonk {
+  color: var(--bonk);
+}
+
+.landing,
+.howto {
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  background: radial-gradient(circle at 50% -10%, #17110b 0%, #0a0709 45%, #050507 100%);
+  color: var(--text);
+}
+
+/* Fond « labyrinthe 3D » du menu (canvas Three.js) sous le contenu. */
+.landing-fx {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-size: cover;
+  background-position: center;
+  pointer-events: none;
+}
+.menu-bg-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.96; /* fond du menu plus visible */
+}
+.landing > section,
+.landing > footer {
+  position: relative;
+  z-index: 2;
+}
+.landing-nav {
+  z-index: 3;
+}
+
+/* Bugs d'écran / scanlines + flash du visage d'Ansem. */
+.menu-scanlines {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.16) 0 2px, transparent 2px 4px);
+  opacity: 0.28;
+  mix-blend-mode: multiply;
+}
+.menu-scare {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0;
+  filter: contrast(1.4) saturate(0.7) brightness(1.1);
+  mix-blend-mode: screen;
+}
+.landing.menu-glitching {
+  animation: menu-glitch 0.28s steps(2, end) 1;
+}
+@keyframes menu-glitch {
+  0% { transform: translate(0, 0); filter: none; }
+  20% { transform: translate(-5px, 2px); filter: hue-rotate(25deg) saturate(1.7); }
+  40% { transform: translate(6px, -3px) skewX(-2deg); filter: contrast(1.5); }
+  60% { transform: translate(-4px, 2px); filter: hue-rotate(-30deg); }
+  80% { transform: translate(3px, -1px) skewX(1.5deg); filter: contrast(1.3); }
+  100% { transform: translate(0, 0); filter: none; }
+}
+
+.landing-nav {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 26px;
+  background: linear-gradient(180deg, rgba(5, 5, 7, 0.92), rgba(5, 5, 7, 0));
+  backdrop-filter: blur(4px);
+}
+.landing-logo {
+  font-weight: 900;
+  letter-spacing: 1px;
+  font-size: 1.05rem;
+  text-shadow: 0 0 18px rgba(225, 29, 43, 0.3);
+}
+.landing-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.landing-vol {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+.landing-vol input[type='range'] {
+  width: 96px;
+  accent-color: var(--bonk);
+  cursor: pointer;
+}
+
+.landing-hero {
+  text-align: center;
+  padding: 60px 22px 40px;
+}
+/* Premier écran du menu : titre + Play centrés, plein écran (le reste apparaît au scroll). */
+.landing-hero-min {
+  min-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  transform: translateY(-7vh); /* remonte légèrement le titre */
+}
+.landing-scroll-hint {
+  margin-top: 6px;
+  font-size: 0.85rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--muted);
+  animation: scroll-bounce 1.6s ease-in-out infinite;
+}
+@keyframes scroll-bounce {
+  0%, 100% { transform: translateY(0); opacity: 0.55; }
+  50% { transform: translateY(7px); opacity: 1; }
+}
+.landing-title {
+  font-size: clamp(2.6rem, 9vw, 5.4rem);
+  font-weight: 900;
+  letter-spacing: 4px;
+  text-shadow: 0 0 34px rgba(225, 29, 43, 0.35), 0 0 70px rgba(255, 47, 47, 0.15);
+  animation: title-flicker 6s infinite;
+}
+@keyframes title-flicker {
+  0%, 100% { opacity: 1; }
+  49% { opacity: 1; }
+  50% { opacity: 0.72; }
+  51% { opacity: 1; }
+  73% { opacity: 0.85; }
+  74% { opacity: 1; }
+}
+.landing-tagline {
+  color: var(--muted);
+  margin: 14px auto 26px;
+  max-width: 640px;
+  font-size: 1rem;
+}
+
+/* Section « concept » : explique santé mentale = market cap. */
+.landing-concept {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 40px 22px 30px;
+  text-align: center;
+}
+.concept-kicker {
+  display: inline-block;
+  font-size: 0.72rem;
+  letter-spacing: 4px;
+  color: var(--bonk);
+  border: 1px solid rgba(225, 29, 43, 0.5);
+  border-radius: 999px;
+  padding: 5px 14px;
+  margin-bottom: 16px;
+}
+.concept-title {
+  font-size: clamp(1.6rem, 4.5vw, 2.5rem);
+  font-weight: 900;
+  line-height: 1.15;
+  margin-bottom: 14px;
+}
+.concept-lead {
+  color: #cfd2dc;
+  max-width: 680px;
+  margin: 0 auto 26px;
+  font-size: 1.02rem;
+  line-height: 1.5;
+}
+.concept-lead strong {
+  color: #fff;
+}
+.concept-flow {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 30px;
+}
+.cf {
+  flex: 1 1 300px;
+  max-width: 380px;
+  text-align: left;
+  padding: 18px 18px 20px;
+  border-radius: 14px;
+  background: rgba(14, 14, 20, 0.72);
+  border: 1px solid #26262f;
+}
+.cf .cf-icon {
+  font-size: 1.8rem;
+  display: block;
+  margin-bottom: 6px;
+}
+.cf b {
+  display: block;
+  font-size: 1.02rem;
+  margin-bottom: 8px;
+}
+.cf span:not(.cf-icon) {
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+.cf-up {
+  border-color: rgba(57, 255, 136, 0.4);
+  box-shadow: inset 0 0 24px rgba(57, 255, 136, 0.06);
+}
+.cf-up b {
+  color: var(--exit);
+}
+.cf-down {
+  border-color: rgba(255, 47, 47, 0.4);
+  box-shadow: inset 0 0 24px rgba(255, 47, 47, 0.07);
+}
+.cf-down b {
+  color: var(--blood);
+}
+.landing-play {
+  width: auto;
+  min-width: 240px;
+  padding: 18px 54px;
+  font-size: 1.35rem;
+}
+.landing-sub {
+  color: var(--muted);
+  font-size: 0.78rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-top: 16px;
+}
+
+.landing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+  padding: 8px 26px 26px;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+.panel {
+  background: var(--panel);
+  border: 1px solid #26262f;
+  border-radius: 14px;
+  padding: 18px 20px 20px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+.panel h2 {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--bonk);
+}
+.panel-note {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin: 6px 0 12px;
+}
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.sanity-readout {
+  font-size: 1.5rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+.sanity-chart {
+  display: block;
+  width: 100%;
+  height: 170px;
+}
+.panel-crypto .crypto-addr {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #101017;
+  border: 1px solid #2c2c36;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.crypto-addr code {
+  flex: 1;
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  font-size: 0.82rem;
+  word-break: break-all;
+  color: var(--exit);
+}
+.btn-copy {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid #2c2c36;
+  background: #1b1b22;
+  color: var(--text);
+  font-size: 1rem;
+}
+.btn-copy:hover {
+  border-color: var(--bonk-dim);
+}
+.crypto-msg {
+  min-height: 18px;
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: var(--exit);
+}
+.lb-lvl {
+  color: var(--bonk);
+  font-size: 0.75rem;
+  font-weight: 800;
+  margin: 0 10px;
+}
+
+.landing-levels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 18px;
+  padding: 8px 26px 30px;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+.level-card {
+  background: var(--panel);
+  border: 1px solid #26262f;
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.level-card.locked {
+  opacity: 0.55;
+  filter: grayscale(0.5);
+}
+.level-tag {
+  font-size: 0.7rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--bonk);
+}
+.level-card h3 {
+  font-size: 1.25rem;
+}
+.level-card p {
+  color: var(--muted);
+  font-size: 0.85rem;
+  flex: 1;
+}
+.level-card .btn-primary {
+  align-self: flex-start;
+  margin-top: 6px;
+}
+.level-lock {
+  align-self: flex-start;
+  margin-top: 6px;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.landing-foot {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.75rem;
+  padding: 18px;
+}
+
+/* ============================================================
+   HOW IT WORKS
+   ============================================================ */
+.howto-body {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 20px 26px 60px;
+}
+.howto-title {
+  font-size: clamp(2rem, 6vw, 3rem);
+  font-weight: 900;
+  letter-spacing: 2px;
+  margin-bottom: 22px;
+  text-shadow: 0 0 26px rgba(225, 29, 43, 0.3);
+}
+.howto-block {
+  margin-bottom: 26px;
+}
+.howto-block h2 {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--bonk);
+  margin-bottom: 8px;
+}
+.howto-block p {
+  line-height: 1.55;
+  color: #d3d3dd;
+}
+.howto-keys {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.howto-keys td {
+  padding: 8px 6px;
+  border-bottom: 1px solid #22222b;
+}
+.howto-keys td:first-child {
+  color: var(--muted);
+  width: 40%;
+}
+kbd {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 5px;
+  background: #1b1b22;
+  border: 1px solid #33333d;
+  box-shadow: 0 2px 0 #000;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.82rem;
+}
+.howto-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.howto-list li {
+  line-height: 1.5;
+  color: #d3d3dd;
+  padding-left: 18px;
+  position: relative;
+}
+.howto-list li::before {
+  content: '▸';
+  position: absolute;
+  left: 0;
+  color: var(--bonk);
+}
+.howto .btn-play {
+  width: auto;
+  min-width: 240px;
+  margin-top: 10px;
+}
+
+/* ============================================================
+   HUD — ajouts (clés PEPE + statut lampe/boussole)
+   ============================================================ */
+.hud-keys[hidden] {
+  display: none;
+}
+.hud-keys {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(155, 255, 90, 0.45);
+  color: var(--exit);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 8px rgba(0, 0, 0, 0.9);
+}
+.hud-keys.done {
+  border-color: var(--exit);
+  box-shadow: 0 0 16px rgba(57, 255, 136, 0.5);
+}
+.hud-controls {
+  position: absolute;
+  left: 18px;
+  bottom: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-shadow: 0 0 8px rgba(0, 0, 0, 0.9);
+}
+.hud-ctl {
+  font-weight: 800;
+  color: #ffe9c2;
+}
+.hud-ctl.off {
+  color: var(--muted);
+}
+.hud-ctl-hint {
+  font-size: 0.72rem;
+  letter-spacing: 1px;
+  color: var(--muted);
+}
+
+/* ============================================================
+   MONITEUR SANTÉ MENTALE (façon écran d'activité)
+   ============================================================ */
+.mh-monitor {
+  background: linear-gradient(#0a0e0f, #030506);
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: 0 26px 70px rgba(0, 0, 0, 0.75), inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 2px 6px rgba(255, 255, 255, 0.06);
+}
+.mh-screen {
+  position: relative;
+  border: 1px solid rgba(200, 235, 222, 0.55);
+  border-radius: 9px;
+  background: radial-gradient(120% 120% at 50% 0%, #10201d 0%, #0a1513 70%, #08110f 100%);
+  padding: 10px 14px 10px;
+  box-shadow: inset 0 0 46px rgba(0, 0, 0, 0.65);
+}
+.mh-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid rgba(200, 235, 222, 0.22);
+  padding-bottom: 8px;
+  margin-bottom: 6px;
+}
+.mh-title {
+  font-weight: 900;
+  letter-spacing: 3px;
+  font-size: 1rem;
+  color: #eef7f3;
+  text-shadow: 0 0 12px rgba(200, 235, 222, 0.2);
+}
+.mh-tag {
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 1px;
+  color: #ff7b84;
+  font-variant-numeric: tabular-nums;
+}
+.mh-plot {
+  display: block;
+  width: 100%;
+  height: 300px;
+}
+
+/* Version compacte (HUD in-game). */
+.mh-monitor.compact {
+  padding: 7px;
+  border-radius: 11px;
+}
+.mh-monitor.compact .mh-screen {
+  padding: 6px 8px 6px;
+  border-radius: 7px;
+}
+.mh-monitor.compact .mh-header {
+  padding-bottom: 4px;
+  margin-bottom: 3px;
+}
+.mh-monitor.compact .mh-title {
+  font-size: 0.6rem;
+  letter-spacing: 2px;
+}
+.mh-monitor.compact .mh-tag {
+  font-size: 0.6rem;
+}
+.mh-monitor.compact .mh-plot {
+  height: 132px;
+}
+
+/* Landing : le moniteur est LA pièce maîtresse, centré au milieu de l'écran. */
+.landing-hero {
+  min-height: calc(100vh - 68px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+}
+.landing-monitor {
+  width: min(760px, 100%);
+  margin: 18px auto 6px;
+}
+.landing-monitor-note {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 4px 0 20px;
+  max-width: 620px;
+}
+.landing-grid {
+  max-width: 900px;
+}
+
+/* HUD : moniteur épinglé en permanence en bas à droite. */
+.hud-monitor {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  width: 300px;
+}
+@media (max-width: 640px) {
+  .hud-monitor { width: 220px; }
+  .mh-monitor.compact .mh-plot { height: 108px; }
+}
+
+/* ============================================================
+   REFONTE MENU — rang joueur, hero (charte + leaderboard), badges,
+   fenêtres de lore. (Complète/écrase les règles landing ci-dessus.)
+   ============================================================ */
+
+/* Puce « votre rang » dans la barre du haut. */
+.rank-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  padding: 5px 12px;
+  border-radius: 10px;
+  border: 1px solid #2c2c36;
+  background: rgba(14, 14, 20, 0.7);
+  line-height: 1.1;
+}
+.rank-chip.ranked {
+  border-color: rgba(225, 29, 43, 0.55);
+  box-shadow: 0 0 18px rgba(225, 29, 43, 0.12);
+}
+.rank-chip-label {
+  font-size: 0.55rem;
+  letter-spacing: 2px;
+  color: var(--muted);
+}
+.rank-chip-val {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-variant-numeric: tabular-nums;
+}
+.rank-num {
+  font-weight: 900;
+  font-size: 1rem;
+  color: var(--bonk);
+}
+.rank-pct {
+  font-weight: 800;
+  font-size: 0.82rem;
+  color: var(--exit);
+}
+.rank-badges {
+  display: inline-flex;
+  gap: 3px;
+}
+.rank-unranked {
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* Hero : le titre + la phrase + charte + leaderboard tiennent dans le 1er écran. */
+.landing-hero {
+  gap: 20px;
+  transform: none;
+}
+.landing-pitch {
+  max-width: 720px;
+  margin: -4px auto 6px;
+  font-size: clamp(1rem, 2.4vw, 1.25rem);
+  line-height: 1.5;
+  color: #d7dae2;
+}
+.landing-pitch strong,
+.landing-pitch .bonk {
+  color: var(--bonk);
+}
+.hero-widgets {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 60px; /* charte et leaderboard davantage écartés (gauche/droite) */
+  width: min(1240px, 96vw); /* plus grands */
+  align-items: stretch;
+  text-align: left;
+}
+.hero-widgets .landing-monitor {
+  width: auto;
+  margin: 0;
+}
+.hero-widgets .mh-plot {
+  height: 210px;
+}
+.hero-board {
+  display: flex;
+  flex-direction: column;
+}
+.hero-board .leaderboard {
+  flex: 1;
+  margin-bottom: 8px;
+  max-height: 230px;
+  overflow-y: auto;
+}
+.board-note {
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+@media (max-width: 760px) {
+  .hero-widgets { grid-template-columns: 1fr; }
+  .rank-chip-label { display: none; }
+}
+
+/* Icônes SVG génériques. */
+.ic {
+  display: inline-block;
+  vertical-align: -0.18em;
+  flex: none;
+}
+.landing-logo .logo-ic {
+  color: var(--bonk);
+  vertical-align: -0.22em;
+  filter: drop-shadow(0 0 8px rgba(225, 29, 43, 0.45));
+}
+.lb-title .ic,
+.hero-board h2 .ic {
+  color: var(--bonk);
+  vertical-align: -0.24em;
+  margin-right: 2px;
+}
+.landing-vol .ic {
+  color: var(--muted);
+}
+.end-title .ic {
+  vertical-align: -0.16em;
+  margin-right: 4px;
+}
+
+/* Badges (chips par chapitre franchi). */
+.badge-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  color: var(--chip, var(--bonk));
+  background: color-mix(in srgb, var(--chip, var(--bonk)) 20%, transparent);
+  box-shadow: inset 0 0 0 1px var(--chip, var(--bonk));
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--chip, var(--bonk)) 45%, transparent));
+}
+.badge-chip .ic {
+  vertical-align: 0;
+}
+
+/* Lignes de leaderboard « avancement » (badges + %). */
+.lb-progress .lb-badges {
+  display: inline-flex;
+  gap: 3px;
+  min-width: 0;
+}
+.lb-progress .lb-pct {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--exit);
+  width: 44px;
+  text-align: right;
+}
+.lb-progress .lb-me {
+  background: rgba(225, 29, 43, 0.1);
+  outline: 1px solid rgba(225, 29, 43, 0.4);
+  border-radius: 8px;
+}
+
+/* Section explications (repliée depuis « How it works »). */
+.landing-how {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 60px 22px 30px;
+  text-align: center;
+}
+.howto-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 26px;
+  text-align: left;
+}
+.howto-grid .howto-block {
+  margin-bottom: 0;
+  background: rgba(14, 14, 20, 0.72);
+  border: 1px solid #26262f;
+  border-radius: 14px;
+  padding: 18px 20px;
+}
+
+/* Fenêtres de lore / choix de niveau (en bas, dévoilées à la progression). */
+.landing-lore {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 8px 26px 30px;
+}
+.lore-window {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 22px 20px 20px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(16, 16, 22, 0.94), rgba(9, 9, 13, 0.94));
+  border: 1px solid #26262f;
+  border-top: 2px solid var(--accent, var(--bonk));
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+.lore-window::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 120px;
+  background: radial-gradient(120% 90% at 50% -30%, color-mix(in srgb, var(--accent, var(--bonk)) 22%, transparent), transparent 70%);
+  pointer-events: none;
+}
+.lore-window-badge {
+  color: var(--accent, var(--bonk));
+  line-height: 0;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent, var(--bonk)) 55%, transparent));
+}
+/* Icônes des cartes marché (hausse = vert, baisse = rouge). */
+.cf-up .cf-icon { color: var(--exit); }
+.cf-down .cf-icon { color: var(--blood); }
+.cf-icon { line-height: 0; }
+.cf-icon .ic { vertical-align: 0; }
+.lore-window-title {
+  font-size: 1.3rem;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+}
+.lore-window-tag {
+  font-size: 0.68rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--accent, var(--bonk));
+}
+.lore-window-text {
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.5;
+  flex: 1;
+}
+.lore-window .btn-primary {
+  align-self: flex-start;
+  margin-top: 6px;
+}
+
+/* Écran de fin : rappel du % atteint + badges gagnés. */
+.end-progress {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 0 0 18px;
+}
+.end-pct {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: var(--exit);
+  font-variant-numeric: tabular-nums;
+}
+.end-badges {
+  display: inline-flex;
+  gap: 5px;
+}
+
+/* ============================================================
+   POLICE HORREUR (menu) + FENÊTRES type « Outlast » (charte + leaderboard)
+   ============================================================ */
+
+/* Police horreur épaisse & dégoulinante (réf. image 1) sur les éléments proéminents du menu.
+   (Nosifer est haute : on donne de l'air aux line-height ; le titre est bien détaché du reste.) */
+.landing-logo,
+.landing-title,
+.concept-kicker,
+.concept-title,
+.lore-window-title,
+.btn-play,
+.end-title {
+  font-family: var(--font-horror);
+  font-weight: 400;
+}
+.landing-title {
+  letter-spacing: 2px;
+  line-height: 1.5;
+  margin-bottom: 30px; /* espace le titre du reste */
+}
+.concept-title {
+  letter-spacing: 0.5px;
+  line-height: 1.5;
+}
+.concept-kicker {
+  line-height: 1.6;
+}
+.landing-logo {
+  letter-spacing: 1px;
+}
+.btn-play {
+  letter-spacing: 1px;
+  line-height: 1.4;
+}
+.lore-window-title {
+  letter-spacing: 0.5px;
+  line-height: 1.45;
+}
+.end-title {
+  line-height: 1.4;
+}
+
+/* Police UI condensée (réf. image 2) pour les en-têtes de fenêtres / données. */
+.win-title,
+.lb-title,
+.panel h2,
+.mh-title {
+  font-family: var(--font-ui);
+}
+
+/* --- Cadre « fenêtre » (charte + leaderboard) : coins équerres, bord fin, en-tête barré --- */
+.win {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: rgba(8, 10, 13, 0.82);
+  border: 1px solid rgba(150, 162, 172, 0.22);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.55), inset 0 0 40px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+}
+.win-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 13px;
+  border-bottom: 1px solid rgba(150, 162, 172, 0.2);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0));
+}
+/* Coulures de sang sous la barre d'en-tête (effet dégoulinant des bords). */
+.win-head::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 24px;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-image:
+    radial-gradient(4px 11px at 7% 0, var(--drip) 70%, transparent 72%),
+    radial-gradient(3px 18px at 19% 0, var(--drip) 70%, transparent 72%),
+    radial-gradient(5px 8px at 33% 0, var(--drip) 70%, transparent 72%),
+    radial-gradient(3px 22px at 51% 0, var(--drip) 70%, transparent 72%),
+    radial-gradient(4px 13px at 66% 0, var(--drip) 70%, transparent 72%),
+    radial-gradient(3px 9px at 82% 0, var(--drip) 70%, transparent 72%),
+    radial-gradient(4px 16px at 93% 0, var(--drip) 70%, transparent 72%);
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6));
+  opacity: 0.92;
+}
+.win-title {
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #d6dde3;
+}
+.win-tag {
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  font-size: 0.74rem;
+  letter-spacing: 1px;
+  color: var(--bonk);
+  font-variant-numeric: tabular-nums;
+}
+.win-body {
+  flex: 1;
+  padding: 12px 14px;
+  min-height: 0;
+}
+/* Équerres aux coins (comme les panneaux Outlast). */
+.win::before,
+.win::after {
+  content: '';
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  pointer-events: none;
+  border-color: rgba(205, 214, 222, 0.55);
+  border-style: solid;
+}
+.win::before {
+  top: -1px;
+  left: -1px;
+  border-width: 1px 0 0 1px;
+}
+.win::after {
+  bottom: -1px;
+  right: -1px;
+  border-width: 0 1px 1px 0;
+}
+
+/* Les deux fenêtres remplissent la rangée hero. */
+.hero-widgets .win {
+  min-width: 0;
+}
+.win-monitor .mh-plot {
+  height: 280px;
+}
+.win-board .leaderboard {
+  margin: 0;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.win-board .board-note {
+  margin-top: 10px;
+}
+/* Lignes du leaderboard façon liste de réglages (libellés condensés, séparateurs fins). */
+.win-board .lb-progress li {
+  border-bottom: 1px solid rgba(150, 162, 172, 0.14);
+}
+.win-board .lb-progress .lb-name {
+  font-family: var(--font-ui);
+  letter-spacing: 0.5px;
+  font-size: 1rem;
+}
+
+/* ============================================================
+   HUD IN-GAME : même direction artistique que le MENU
+   (police condensée Barlow, accent rouge, moniteur en « fenêtre »)
+   ============================================================ */
+.hud-timer,
+.hud-hint,
+.hud-keys,
+.hud-ctl,
+.hud-ctl-hint,
+.hud-compass-label,
+.hud-minimap-title,
+.hud-monitor.compact .mh-title {
+  font-family: var(--font-ui);
+}
+.hud-timer {
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: #d6dde3;
+}
+.hud-hint {
+  letter-spacing: 1px;
+}
+.hud-ctl-hint {
+  letter-spacing: 0.5px;
+}
+
+/* Le moniteur de santé mentale devient une FENÊTRE (cadre fin + équerres) comme dans le menu. */
+.hud-monitor.mh-monitor.compact {
+  padding: 0;
+  border-radius: 0;
+  background: rgba(8, 10, 13, 0.82);
+  border: 1px solid rgba(150, 162, 172, 0.28);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+}
+.hud-monitor.compact::before,
+.hud-monitor.compact::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+  border-color: rgba(205, 214, 222, 0.6);
+  border-style: solid;
+}
+.hud-monitor.compact::before {
+  top: -1px;
+  left: -1px;
+  border-width: 1px 0 0 1px;
+}
+.hud-monitor.compact::after {
+  bottom: -1px;
+  right: -1px;
+  border-width: 0 1px 1px 0;
+}
+.hud-monitor.compact .mh-screen {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 8px 11px;
+}
+.hud-monitor.compact .mh-header {
+  border-bottom: 1px solid rgba(150, 162, 172, 0.22);
+  padding-bottom: 5px;
+  margin-bottom: 5px;
+}
+.hud-monitor.compact .mh-title {
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: #d6dde3;
+  font-size: 0.64rem;
 }

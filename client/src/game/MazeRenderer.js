@@ -129,8 +129,11 @@ export class MazeRenderer {
     // --- Panneau de contrôles peint sur le mur (si défini) ---
     if (maze.controlsWall) this.#buildControlsWall();
 
-    // --- Portail de sortie (uniquement les niveaux de fin) ---
-    if (this.opts.portal) this.#buildPortal();
+    // --- Sortie (uniquement les niveaux de fin) : portail OU trou dans le sol ---
+    if (this.opts.portal) {
+      if (this.opts.exitKind === 'hole') this.#buildHole();
+      else this.#buildPortal();
+    }
   }
 
   #buildRisers() {
@@ -184,42 +187,163 @@ export class MazeRenderer {
     this.disposables.push(tex, mat, geo);
   }
 
+  // Portail magique à la sortie. Deux états :
+  //  - VERROUILLÉ (rouge, tournoiement lent, cœur sombre) tant que toutes les clés PEPE
+  //    ne sont pas ramassées ;
+  //  - ACTIF (vert éclatant, disque de vortex, halo intense) une fois débloqué.
   #buildPortal() {
     const maze = this.maze;
     const exitPos = maze.cellToWorld(maze.exit.col, maze.exit.row);
     const portalGroup = new THREE.Group();
     portalGroup.position.set(exitPos.x, 0, exitPos.z);
     const y = maze.ceilingAt(maze.exit.col, maze.exit.row) * 0.45;
+    this.portalY = y;
 
-    const portalMat = new THREE.MeshStandardMaterial({
-      color: 0x39ff88,
-      emissive: 0x39ff88,
-      emissiveIntensity: 2.2,
-      roughness: 0.4,
+    this.LOCKED_COLOR = new THREE.Color(0xff2a2a);
+    this.ACTIVE_COLOR = new THREE.Color(0x39ff88);
+
+    // Deux anneaux concentriques qui tournent en sens inverse.
+    const ringMat = new THREE.MeshStandardMaterial({
+      color: this.LOCKED_COLOR.clone(),
+      emissive: this.LOCKED_COLOR.clone(),
+      emissiveIntensity: 1.6,
+      roughness: 0.35,
     });
-    const ringGeo = new THREE.TorusGeometry(1.1, 0.16, 12, 32);
-    const ring = new THREE.Mesh(ringGeo, portalMat);
+    this.portalMat = ringMat;
+    const ringGeo = new THREE.TorusGeometry(1.25, 0.16, 14, 40);
+    const ring = new THREE.Mesh(ringGeo, ringMat);
     ring.position.y = y;
     portalGroup.add(ring);
 
-    const coreGeo = new THREE.SphereGeometry(0.5, 16, 16);
-    const core = new THREE.Mesh(coreGeo, portalMat);
-    core.position.y = y;
-    portalGroup.add(core);
+    const ring2Geo = new THREE.TorusGeometry(0.85, 0.09, 12, 32);
+    const ring2 = new THREE.Mesh(ring2Geo, ringMat);
+    ring2.position.y = y;
+    portalGroup.add(ring2);
 
-    const exitLight = new THREE.PointLight(0x39ff88, 6, CELL * 5, 1.8);
+    // Disque de « vortex » au centre (transparent, additif), face au joueur via lookAt.
+    const vortexMat = new THREE.MeshBasicMaterial({
+      color: this.LOCKED_COLOR.clone(),
+      transparent: true,
+      opacity: 0.35,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    this.vortexMat = vortexMat;
+    const vortexGeo = new THREE.CircleGeometry(1.15, 32);
+    const vortex = new THREE.Mesh(vortexGeo, vortexMat);
+    vortex.position.y = y;
+    portalGroup.add(vortex);
+    this.vortex = vortex;
+
+    const exitLight = new THREE.PointLight(this.LOCKED_COLOR.clone(), 4, CELL * 5, 1.8);
     exitLight.position.set(0, y, 0);
     portalGroup.add(exitLight);
 
     this.group.add(portalGroup);
     this.exitLight = exitLight;
     this.ring = ring;
-    this.disposables.push(ringGeo, coreGeo, portalMat);
+    this.ring2 = ring2;
+    this.portalActive = false;
+    this.disposables.push(ringGeo, ring2Geo, vortexGeo, ringMat, vortexMat);
+  }
+
+  // Trou dans le sol = sortie du niveau 1 (transition « chute » vers la forêt). Ouverture
+  // noire encastrée, puits sombre descendant + lueur au fond qui s'allume une fois les clés
+  // réunies. Réutilise l'API setPortalActive/update via des refs holeXxx.
+  #buildHole() {
+    const maze = this.maze;
+    const exitPos = maze.cellToWorld(maze.exit.col, maze.exit.row);
+    const group = new THREE.Group();
+    group.position.set(exitPos.x, 0, exitPos.z);
+
+    const R = CELL * 0.42;
+    const depth = 14;
+
+    // Ouverture noire pure au ras du sol (lue comme un trou dans le noir).
+    const openingMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    const opening = new THREE.Mesh(new THREE.CircleGeometry(R, 40), openingMat);
+    opening.rotation.x = -Math.PI / 2;
+    opening.position.y = 0.04;
+    group.add(opening);
+
+    // Paroi intérieure du puits (visible quand on s'approche du bord).
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x090a0d, roughness: 1, side: THREE.DoubleSide });
+    const wall = new THREE.Mesh(new THREE.CylinderGeometry(R, R * 0.7, depth, 32, 1, true), wallMat);
+    wall.position.y = 0.04 - depth / 2;
+    group.add(wall);
+
+    // Fond + lueur qui s'allume à l'activation.
+    this.holeColorLocked = new THREE.Color(0x220000);
+    this.holeColorActive = new THREE.Color(0x39ff88);
+    this.holeGlowMat = new THREE.MeshBasicMaterial({ color: this.holeColorLocked.clone(), transparent: true, opacity: 0.9 });
+    const bottom = new THREE.Mesh(new THREE.CircleGeometry(R * 0.7, 32), this.holeGlowMat);
+    bottom.rotation.x = -Math.PI / 2;
+    bottom.position.y = 0.04 - depth;
+    group.add(bottom);
+
+    // Rebord (anneau) autour de l'ouverture.
+    this.holeRimMat = new THREE.MeshStandardMaterial({ color: 0x14141a, emissive: this.holeColorLocked.clone(), emissiveIntensity: 0.4, roughness: 0.7 });
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(R, 0.18, 10, 44), this.holeRimMat);
+    rim.rotation.x = Math.PI / 2;
+    rim.position.y = 0.06;
+    group.add(rim);
+
+    // Lumière montant du puits.
+    this.holeLight = new THREE.PointLight(this.holeColorLocked.clone(), 0.6, CELL * 5, 1.8);
+    this.holeLight.position.set(0, 0.5, 0);
+    group.add(this.holeLight);
+
+    this.group.add(group);
+    this.holeGroup = group;
+    // Les matériaux sont suivis ici ; les géométries sont libérées par le traverse de dispose().
+    this.disposables.push(openingMat, wallMat, this.holeGlowMat, this.holeRimMat);
+  }
+
+  // Bascule verrouillé ↔ actif (appelé quand toutes les clés PEPE sont récupérées).
+  setPortalActive(active) {
+    // Cas « trou » (niveau 1) : allume la lueur du puits.
+    if (this.holeGroup) {
+      const c = active ? this.holeColorActive : this.holeColorLocked;
+      this.holeGlowMat.color.copy(c);
+      this.holeGlowMat.opacity = active ? 1 : 0.9;
+      this.holeRimMat.emissive.copy(c);
+      this.holeRimMat.emissiveIntensity = active ? 1.4 : 0.4;
+      this.holeLight.color.copy(c);
+      this.holeLight.intensity = active ? 3.5 : 0.6;
+      this.portalActive = active;
+      return;
+    }
+    this.#setPortalActiveRing(active);
+  }
+
+  #setPortalActiveRing(active) {
+    this.portalActive = active;
+    const c = active ? this.ACTIVE_COLOR : this.LOCKED_COLOR;
+    if (this.portalMat) {
+      this.portalMat.color.copy(c);
+      this.portalMat.emissive.copy(c);
+      this.portalMat.emissiveIntensity = active ? 2.6 : 1.6;
+    }
+    if (this.vortexMat) {
+      this.vortexMat.color.copy(c);
+      this.vortexMat.opacity = active ? 0.6 : 0.3;
+    }
+    if (this.exitLight) this.exitLight.color.copy(c);
   }
 
   update(dt, elapsed) {
-    if (this.ring) this.ring.rotation.z += dt * 1.5;
-    if (this.exitLight) this.exitLight.intensity = 5 + Math.sin(elapsed * 4) * 1.5;
+    if (this.ring) this.ring.rotation.z += dt * (this.portalActive ? 2.2 : 0.8);
+    if (this.ring2) this.ring2.rotation.z -= dt * (this.portalActive ? 3.0 : 1.1);
+    if (this.vortex) this.vortex.rotation.z += dt * (this.portalActive ? 4 : 1.5);
+    if (this.exitLight) {
+      const base = this.portalActive ? 7 : 3;
+      this.exitLight.intensity = base + Math.sin(elapsed * 4) * 1.5;
+    }
+    if (this.holeLight) {
+      const base = this.portalActive ? 3.5 : 0.6;
+      this.holeLight.intensity = base + Math.sin(elapsed * 3) * (this.portalActive ? 1.2 : 0.2);
+    }
   }
 
   dispose() {

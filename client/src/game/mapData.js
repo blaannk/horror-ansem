@@ -25,7 +25,123 @@ export const SPAWN_LAYOUT = {
   startFacing: 'north',
 };
 
-// --- Niveau 3 : salle de terreur (deux couloirs ; gauche fermé par une porte) ---
+// --- Niveau 1b : couloir serpentin d'apprentissage (pas de labyrinthe, juste des virages).
+// Corridor d'1 cellule de large qui remonte en S du coin bas-gauche vers le haut-droit :
+// sert à se faire aux touches (rappel : gauche/droite inversées) avant la grande map. ---
+const PATH_CEIL = 4.6;
+export const PATH_LAYOUT = {
+  id: 'path',
+  cols: 13,
+  rows: 13,
+  areas: [
+    { x0: 2, y0: 10, x1: 10, y1: 10, ceil: PATH_CEIL }, // bas : va vers la droite
+    { x0: 10, y0: 7, x1: 10, y1: 10, ceil: PATH_CEIL }, // monte à droite
+    { x0: 2, y0: 7, x1: 10, y1: 7, ceil: PATH_CEIL }, // revient vers la gauche
+    { x0: 2, y0: 4, x1: 2, y1: 7, ceil: PATH_CEIL }, // monte à gauche
+    { x0: 2, y0: 4, x1: 10, y1: 4, ceil: PATH_CEIL }, // repart vers la droite
+    { x0: 10, y0: 2, x1: 10, y1: 4, ceil: PATH_CEIL }, // monte vers la sortie
+  ],
+  pillars: [],
+  blocks: [],
+  lights: [],
+  playerStart: { col: 2, row: 10 },
+  monsterStart: null,
+  exitCell: { col: 10, row: 2 },
+  startFacing: 'east',
+};
+
+// --- Labyrinthe crypto FIXE (mémorisable) : carte ASCII déterministe, plus petite que
+// l'ancienne map procédurale 41×41. Salle de terreur en bas (S = spawn, A = recoin d'Ansem,
+// D = porte fermée), labyrinthe au-dessus (3 P fixes + X = trou de sortie). La salle et le
+// labyrinthe ne communiquent que par la porte D. (Connexité vérifiée : tous les P et X
+// atteignables une fois la porte ouverte.) ---
+export const ESCAPE_LAYOUT = {
+  id: 'escape',
+  ceil: 6,
+  startFacing: 'north',
+  map: [
+    '###################',
+    '#X..#.........#...#',
+    '###.#.#.#####.###.#',
+    '#...#.......#...#.#',
+    '#.###.#.###.###.#P#',
+    '#...#.#.#.....#...#',
+    '#.#.#.#P..#######.#',
+    '#...#.#.#...#.....#',
+    '#.###.#.#.#.#...#.#',
+    '#.#.....#.#.#.....#',
+    '#.###.#####.#.#####',
+    '#P..#.#.....#.#...#',
+    '###.#.#.#####.#...#',
+    '#...#.#.....#...#.#',
+    '#.###.#.###.###.#.#',
+    '#.....#...#.......#',
+    '#########D#########',
+    '######......A######',
+    '######.......######',
+    '######.S.....######',
+    '###################',
+  ],
+};
+
+// --- Niveau 3 « Liquidation » : enchevêtrement de couloirs exigus, avec du terrain vertical.
+// Symboles : '#' mur · '.' sol · 'c' plafond bas (RAMPER) · '_' trou (SAUTER) · '^' rebord
+// (sauter dessus) · 'S' spawn · 'X' sortie · 'A' Ansem. Généré + vérifié (le joueur atteint X
+// avec saut/accroupi/montée ; Ansem flotte et traverse tout). ---
+export const ENDGAME_LAYOUT = {
+  id: 'endgame',
+  ceil: 5,
+  startFacing: 'north',
+  // Couloir ÉTROIT (1 de large) SINUEUX : droites plus longues (moins de virages), directions
+  // IRRÉGULIÈRES (pas de boustrophedon mécanique, avec un petit crochet), obstacles placés de
+  // façon VARIÉE — certaines droites en portent deux, d'autres aucune, types mélangés, et
+  // beaucoup de SAUTS ('_') + quelques GLISSADES ('c'). Connexité S->X vérifiée par BFS
+  // (gen-endgame8.mjs). 'A' = spawn Ansem (relâché après une courte grâce, cf. EndgameLevel).
+  map: [
+    '#############',
+    '##.c.X#######',
+    '##.##########',
+    '##._...######',
+    '######.######',
+    '######.....##',
+    '##########_##',
+    '####._..c..##',
+    '####.########',
+    '##._.########',
+    '##.##########',
+    '##._.....####',
+    '########.####',
+    '########....#',
+    '###########c#',
+    '######.._...#',
+    '######_######',
+    '#SA....######',
+    '#############',
+  ],
+};
+
+// --- Salle finale : petite pièce ouverte (habillée en sphère par VictoryLevel) avec le trophée
+// au centre. Bordure de murs pour borner le joueur ; spawn au sud face au centre. ---
+export const VICTORY_LAYOUT = {
+  id: 'victory',
+  ceil: 8,
+  startFacing: 'north',
+  // La case centrale (4,4) est un MUR : elle bloque le joueur autour du trophée/piédestal
+  // (collision), sans être rendue (VictoryLevel dessine le socle + le trophée par-dessus).
+  map: [
+    '#########',
+    '#.......#',
+    '#.......#',
+    '#.......#',
+    '#...#...#',
+    '#.......#',
+    '#.......#',
+    '#...S...#',
+    '#########',
+  ],
+};
+
+// --- Niveau (ancien) : salle de terreur (deux couloirs ; gauche fermé par une porte) ---
 export const TERROR_LAYOUT = {
   id: 'terror',
   cols: 17,

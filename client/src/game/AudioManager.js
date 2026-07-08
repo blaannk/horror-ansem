@@ -21,6 +21,18 @@ export class AudioManager {
     this.kbNext = 0.2;
     this.neonGain = null;
     this.dread = null;
+    this.monsterVoice = 'ansem'; // 'ansem' (growl/screech) | 'bonk' (pas lourds + rugissement)
+    this.buffers = null; // échantillons audio décodés (rugissement, screamer, musiques, screams)
+    this._near = null; // boucle de proximité d'Ansem (fichier)
+    this._music = null; // source de la musique de fond en boucle (par niveau)
+    this._musicWanted = false;
+    this._musicName = null;
+    this._musicGain = 0.32;
+  }
+
+  // Choisit la « voix » du monstre : coupe le growl/screech d'Ansem pour BONK.
+  setMonsterVoice(v) {
+    this.monsterVoice = v;
   }
 
   // Doit être appelé suite à une interaction utilisateur (clic « Jouer »).
@@ -40,8 +52,151 @@ export class AudioManager {
     this.#buildDrone();
     this.#buildGrowl();
     this.#buildScreech();
+    this.#loadSamples();
 
     this.running = true;
+  }
+
+  // Charge/décode les fichiers audio du niveau forêt (fournis par l'utilisateur, dans /sfx).
+  #loadSamples() {
+    if (this.buffers) return;
+    this.buffers = {};
+    const files = {
+      roar: '/sfx/bonk-roar.mp3',
+      screamer: '/sfx/bonk-screamer.mp3',
+      ansemScreamer: '/sfx/ansem-screamer.mp3', // apparition + jumpscare d'Ansem
+      ansemNear: '/sfx/ansem-near.mp3', // son d'Ansem quand il se rapproche (boucle)
+      forestTheme: '/sfx/forest-theme.mp3',
+      level1Music: '/sfx/level1-music.mp3',
+      level3Music: '/sfx/level3-music.mp3',
+      wakeup: '/sfx/wakeup.mp3',
+      scream1: '/sfx/scream1.mp3',
+      scream2: '/sfx/scream2.mp3',
+      scream3: '/sfx/scream3.mp3',
+      scream4: '/sfx/scream4.mp3',
+    };
+    for (const [name, url] of Object.entries(files)) {
+      fetch(url)
+        .then((r) => r.arrayBuffer())
+        .then((ab) => this.ctx.decodeAudioData(ab))
+        .then((buf) => {
+          this.buffers[name] = buf;
+          this.#ensureMusic(); // démarre la musique en boucle si déjà demandée et prête
+        })
+        .catch(() => {
+          /* fichier absent → repli synthé */
+        });
+    }
+  }
+
+  // Joue un échantillon décodé via le master. loop=true → renvoie { src, gain } (pour l'arrêter).
+  // duration>0 coupe la lecture après N s (avec fadeOut optionnel) — utile pour tronquer un
+  // fichier (ex. couper la fin parlée du son de réveil).
+  playSample(name, { gain = 0.8, loop = false, duration = 0, fadeOut = 0 } = {}) {
+    if (!this.ctx || !this.buffers || !this.buffers[name]) return null;
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.buffers[name];
+    src.loop = loop;
+    const g = this.ctx.createGain();
+    g.gain.value = gain;
+    src.connect(g).connect(this.master);
+    const now = this.ctx.currentTime;
+    if (duration > 0) {
+      if (fadeOut > 0) {
+        g.gain.setValueAtTime(gain, now + Math.max(0, duration - fadeOut));
+        g.gain.linearRampToValueAtTime(0.0001, now + duration);
+      }
+      src.start(now, 0, duration);
+    } else {
+      src.start(now);
+    }
+    return { src, gain: g };
+  }
+
+  // Musique de fond en boucle (par niveau : thème forêt, musique niveau 3…). Fondu +
+  // résistance au timing de chargement (réessai depuis #loadSamples).
+  startMusic(name, gain = 0.32) {
+    // Déjà en train de jouer cette piste → on la laisse continuer (pas de redémarrage).
+    // Permet à la musique du chapitre 1 de rester continue à travers ses sous-niveaux.
+    if (this._music && this._musicName === name) return;
+    this._musicWanted = true;
+    this._musicName = name;
+    this._musicGain = gain;
+    this.#ensureMusic();
+    // Baisse le drone synthé pour laisser respirer la musique.
+    if (this.droneGain && this.ctx) this.droneGain.gain.setTargetAtTime(0.04, this.ctx.currentTime, 1);
+  }
+
+  // Nom de la piste EN COURS de lecture (null si aucune) — pour décider s'il faut la couper.
+  currentMusicName() {
+    return this._music ? this._musicName : null;
+  }
+
+  #ensureMusic() {
+    if (!this._musicWanted || this._music || !this.ctx || !this._musicName) return;
+    const t = this.playSample(this._musicName, { gain: 0.0001, loop: true });
+    if (!t) return; // pas encore décodé → réessai depuis #loadSamples
+    this._music = t;
+    t.gain.gain.setTargetAtTime(this._musicGain, this.ctx.currentTime, 1.0);
+  }
+
+  stopMusic() {
+    this._musicWanted = false;
+    if (!this._music) return;
+    const { src, gain } = this._music;
+    this._music = null;
+    const now = this.ctx.currentTime;
+    gain.gain.setTargetAtTime(0.0001, now, 0.5);
+    try {
+      src.stop(now + 0.8);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  // Screamer sonore de BONK (fichier fourni ; repli sur le cri synthé). On coupe d'abord un
+  // éventuel rugissement encore en cours pour NE laisser QUE le son du screamer.
+  bonkScream() {
+    if (!this.running || !this.ctx) return;
+    try {
+      this._roar?.src.stop();
+    } catch {
+      /* ignore */
+    }
+    this._roar = null;
+    if (this.playSample('screamer', { gain: 0.95 })) return;
+    this.sting('scream');
+  }
+
+  // Screamer sonore d'ANSEM (fichier « apparition et jumpscare » ; repli sur le cri synthé).
+  // Coupe d'abord la boucle de proximité pour ne laisser QUE le screamer.
+  ansemScream() {
+    if (!this.running || !this.ctx) return;
+    if (this._near) this._near.gain.gain.setTargetAtTime(0.0001, this.ctx.currentTime, 0.05);
+    if (this.playSample('ansemScreamer', { gain: 0.95 })) return;
+    this.sting('scream');
+  }
+
+  // Boucle de proximité d'Ansem (fichier « quand il est proche de toi ») : volume piloté par la
+  // proximité, panoramique selon la position. Remplace le growl/screech synthétisés.
+  #updateNear(level, pan) {
+    if (!this.ctx) return;
+    if (!this._near && this.buffers?.ansemNear) {
+      const src = this.ctx.createBufferSource();
+      src.buffer = this.buffers.ansemNear;
+      src.loop = true;
+      const g = this.ctx.createGain();
+      g.gain.value = 0.0001;
+      const panner = this.ctx.createStereoPanner();
+      src.connect(g).connect(panner).connect(this.master);
+      src.start();
+      this._near = { src, gain: g, pan: panner };
+    }
+    if (!this._near) return;
+    const now = this.ctx.currentTime;
+    const target = level <= 0 ? 0.0001 : Math.min(0.9, level * level * 0.9 + 0.02);
+    this._near.gain.gain.setTargetAtTime(target, now, 0.15);
+    this._near.pan.pan.setTargetAtTime(Math.max(-1, Math.min(1, pan)), now, 0.15);
   }
 
   #buildDrone() {
@@ -138,14 +293,15 @@ export class AudioManager {
   #step({ kind = 'player', gain = 0.3, pan = 0 }) {
     const ctx = this.ctx;
     const now = ctx.currentTime;
-    const isMonster = kind === 'monster';
+    const isBonk = kind === 'bonk';
+    const isMonster = kind === 'monster' || isBonk;
 
     const panner = ctx.createStereoPanner();
     panner.pan.value = Math.max(-1, Math.min(1, pan));
     panner.connect(this.master);
 
-    // Burst de bruit (frottement/poussière).
-    const dur = isMonster ? 0.2 : 0.1;
+    // Burst de bruit (frottement/poussière ; BONK = impact de patte plus sourd).
+    const dur = isBonk ? 0.26 : isMonster ? 0.2 : 0.1;
     const len = Math.floor(ctx.sampleRate * dur);
     const buf = ctx.createBuffer(1, len, ctx.sampleRate);
     const data = buf.getChannelData(0);
@@ -154,26 +310,69 @@ export class AudioManager {
     noise.buffer = buf;
     const lp = ctx.createBiquadFilter();
     lp.type = 'lowpass';
-    lp.frequency.value = isMonster ? 480 : 1500;
+    lp.frequency.value = isBonk ? 300 : isMonster ? 480 : 1500;
     const ng = ctx.createGain();
     ng.gain.value = gain * (isMonster ? 0.9 : 0.5);
     noise.connect(lp).connect(ng).connect(panner);
     noise.start(now);
     noise.stop(now + dur);
 
-    // Impact basse fréquence.
-    const f0 = isMonster ? 65 : 115;
+    // Impact basse fréquence (BONK = thud plus grave et plus long).
+    const f0 = isBonk ? 50 : isMonster ? 65 : 115;
     const osc = ctx.createOscillator();
     osc.type = 'sine';
     osc.frequency.setValueAtTime(f0, now);
-    osc.frequency.exponentialRampToValueAtTime(f0 * 0.5, now + 0.12);
+    osc.frequency.exponentialRampToValueAtTime(f0 * 0.5, now + (isBonk ? 0.16 : 0.12));
     const og = ctx.createGain();
     og.gain.setValueAtTime(0.0001, now);
-    og.gain.exponentialRampToValueAtTime(gain * (isMonster ? 0.7 : 0.4), now + 0.01);
-    og.gain.exponentialRampToValueAtTime(0.0001, now + (isMonster ? 0.24 : 0.13));
+    og.gain.exponentialRampToValueAtTime(gain * (isBonk ? 0.95 : isMonster ? 0.7 : 0.4), now + 0.01);
+    og.gain.exponentialRampToValueAtTime(0.0001, now + (isBonk ? 0.3 : isMonster ? 0.24 : 0.13));
     osc.connect(og).connect(panner);
     osc.start(now);
-    osc.stop(now + 0.27);
+    osc.stop(now + 0.32);
+  }
+
+  // Rugissement de BONK : fichier fourni (/sfx) si disponible, sinon repli synthé guttural.
+  bonkRoar() {
+    if (!this.running || !this.ctx) return;
+    const sample = this.playSample('roar', { gain: 0.9 });
+    if (sample) {
+      this._roar = sample; // suivi pour pouvoir le couper au screamer
+      return;
+    }
+    const ctx = this.ctx;
+    const now = ctx.currentTime;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.75, now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 1.15);
+    g.connect(this.master);
+    const shaper = ctx.createWaveShaper();
+    shaper.curve = makeDistortion(300);
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.setValueAtTime(950, now);
+    lp.frequency.exponentialRampToValueAtTime(240, now + 1.0);
+    shaper.connect(lp).connect(g);
+    for (const f of [70, 104, 146, 190]) {
+      const osc = ctx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(f * 1.6, now);
+      osc.frequency.exponentialRampToValueAtTime(f * 0.7, now + 0.9);
+      osc.detune.value = Math.random() * 40 - 20;
+      osc.connect(shaper);
+      osc.start(now);
+      osc.stop(now + 1.15);
+    }
+    const sub = ctx.createOscillator();
+    sub.type = 'sine';
+    sub.frequency.setValueAtTime(60, now);
+    sub.frequency.exponentialRampToValueAtTime(30, now + 0.8);
+    const sg = ctx.createGain();
+    sg.gain.setValueAtTime(0.5, now);
+    sg.gain.exponentialRampToValueAtTime(0.0001, now + 0.9);
+    sub.connect(sg).connect(this.master);
+    sub.start(now);
+    sub.stop(now + 0.95);
   }
 
   // Un « lub-dub » de battement de cœur.
@@ -271,6 +470,47 @@ export class AudioManager {
     osc.connect(g);
     osc.start(now);
     osc.stop(now + 0.95);
+  }
+
+  // Chute dans le trou : whoosh de vent qui enfle + sous-grave descendant (sensation de plongée).
+  fallWhoosh() {
+    if (!this.running || !this.ctx) return;
+    const ctx = this.ctx;
+    const now = ctx.currentTime;
+    const dur = 1.5;
+
+    // Vent : bruit passe-bande dont la fréquence chute + volume qui enfle puis coupe.
+    const len = Math.floor(ctx.sampleRate * dur);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    const noise = ctx.createBufferSource();
+    noise.buffer = buf;
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.Q.value = 0.8;
+    bp.frequency.setValueAtTime(1200, now);
+    bp.frequency.exponentialRampToValueAtTime(180, now + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(0.4, now + 0.5);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    noise.connect(bp).connect(g).connect(this.master);
+    noise.start(now);
+    noise.stop(now + dur);
+
+    // Sous-grave qui plonge.
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(140, now);
+    osc.frequency.exponentialRampToValueAtTime(28, now + dur);
+    const og = ctx.createGain();
+    og.gain.setValueAtTime(0.0001, now);
+    og.gain.exponentialRampToValueAtTime(0.32, now + 0.15);
+    og.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    osc.connect(og).connect(this.master);
+    osc.start(now);
+    osc.stop(now + dur + 0.1);
   }
 
   // Tension montante du décompte : grondement + whine qui s'intensifient.
@@ -412,17 +652,14 @@ export class AudioManager {
     }
     const p = Math.max(0, Math.min(1, cues.proximity ?? 0));
     const pan = Math.max(-1, Math.min(1, cues.pan ?? 0));
+    const bonk = this.monsterVoice === 'bonk';
 
-    // Growl : monte avec la proximité.
-    this.growlGain.gain.setTargetAtTime(p * p * 0.5, now, 0.1);
-    this.growlPan.pan.setTargetAtTime(pan, now, 0.1);
-
-    // Drone : s'assombrit/ouvre selon la tension.
+    // Growl/screech SYNTHÉTISÉS RETIRÉS : la « voix » d'Ansem est désormais le fichier
+    // ansem-near (boucle) dont le volume monte avec la proximité. BONK garde ses sons fichiers.
+    this.growlGain.gain.setTargetAtTime(0, now, 0.1);
+    this.screechGain?.gain.setTargetAtTime(0, now, 0.08);
     this.droneFilter.frequency.setTargetAtTime(220 + p * 600, now, 0.2);
-
-    // Screech : n'émerge qu'au-delà de 72 % de proximité (il va t'attraper).
-    const screech = p > 0.72 ? (p - 0.72) / 0.28 : 0;
-    this.screechGain?.gain.setTargetAtTime(screech * screech * 0.2, now, 0.08);
+    this.#updateNear(bonk ? 0 : p, pan);
 
     // Battement de cœur : intervalle de 1.25 s (calme) à 0.34 s (panique).
     const interval = 1.25 - p * 0.91;
@@ -444,18 +681,41 @@ export class AudioManager {
       this.playerStepClock = 0.5; // premier pas immédiat à la reprise
     }
 
-    // Pas du monstre (claudicants → intervalles inégaux ; volume/pan selon la proximité).
+    // Pas du monstre. BONK : pas LOURDS qui accélèrent (galop) et deviennent de plus en plus
+    // forts à mesure qu'il se rapproche. Ansem : boiterie plus légère.
     if (cues.monsterMoving) {
       this.monsterStepClock += dt;
-      const stride = this.monsterStepParity ? 0.34 : 0.56; // boiterie
+      let stride;
+      let gain;
+      if (bonk) {
+        stride = 0.5 - p * 0.28; // 0.5 s (loin) → 0.22 s (près) : galop
+        gain = 0.18 + p * 1.1; // franchement plus fort en approchant
+      } else {
+        stride = this.monsterStepParity ? 0.34 : 0.56; // boiterie
+        gain = 0.12 + p * 0.6;
+      }
       if (this.monsterStepClock >= stride) {
         this.monsterStepClock = 0;
         this.monsterStepParity = !this.monsterStepParity;
-        this.#step({ kind: 'monster', gain: 0.12 + p * 0.6, pan });
+        this.#step({ kind: bonk ? 'bonk' : 'monster', gain, pan });
       }
     } else {
       this.monsterStepClock = 0;
     }
+  }
+
+  // Au CHANGEMENT DE NIVEAU : coupe les sons transitoires du niveau précédent (néon, clavier,
+  // boucle de proximité d'Ansem, growl/screech, dread). La MUSIQUE est gérée à part (track-aware)
+  // pour rester continue quand le niveau suivant utilise la même piste.
+  silenceTransients() {
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    this.neonBuzz(false);
+    this.kbOn = false;
+    this.growlGain?.gain.setTargetAtTime(0, now, 0.05);
+    this.screechGain?.gain.setTargetAtTime(0, now, 0.05);
+    this._near?.gain.gain.setTargetAtTime(0.0001, now, 0.08);
+    this.stopDread();
   }
 
   // Coupe tous les sons continus (drone, growl, screech, néon, dread, clavier).
@@ -466,9 +726,11 @@ export class AudioManager {
     this.droneGain?.gain.setTargetAtTime(0, now, 0.08);
     this.growlGain?.gain.setTargetAtTime(0, now, 0.08);
     this.screechGain?.gain.setTargetAtTime(0, now, 0.08);
+    this._near?.gain.gain.setTargetAtTime(0.0001, now, 0.08);
     this.neonGain?.gain.setTargetAtTime(0, now, 0.08);
     this.kbOn = false;
     this.stopDread();
+    this.stopMusic();
   }
 
   // Stinger ponctuel.
@@ -532,6 +794,48 @@ export class AudioManager {
         osc.stop(now + i * 0.12 + 0.55);
       });
     }
+  }
+
+  // Ramassage d'une pièce PEPE : petit « zap » néon qui monte + arpège clair et brillant.
+  coinPickup() {
+    if (!this.running || !this.ctx) return;
+    const ctx = this.ctx;
+    const now = ctx.currentTime;
+    const g = ctx.createGain();
+    g.gain.value = 0.5;
+    g.connect(this.master);
+
+    // Zap néon : balayage rapide vers l'aigu, légèrement saturé.
+    const zg = ctx.createGain();
+    zg.gain.setValueAtTime(0.0001, now);
+    zg.gain.exponentialRampToValueAtTime(0.28, now + 0.015);
+    zg.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+    const zap = ctx.createOscillator();
+    zap.type = 'sawtooth';
+    zap.frequency.setValueAtTime(320, now);
+    zap.frequency.exponentialRampToValueAtTime(2600, now + 0.14);
+    const zbp = ctx.createBiquadFilter();
+    zbp.type = 'bandpass';
+    zbp.frequency.value = 1600;
+    zbp.Q.value = 1.2;
+    zap.connect(zbp).connect(zg).connect(g);
+    zap.start(now);
+    zap.stop(now + 0.18);
+
+    // Arpège chime brillant par-dessus.
+    [880, 1320, 1760].forEach((f, i) => {
+      const t = now + 0.04 + i * 0.06;
+      const osc = ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = f;
+      const og = ctx.createGain();
+      og.gain.setValueAtTime(0.0001, t);
+      og.gain.exponentialRampToValueAtTime(0.35, t + 0.02);
+      og.gain.exponentialRampToValueAtTime(0.0001, t + 0.24);
+      osc.connect(og).connect(g);
+      osc.start(t);
+      osc.stop(t + 0.26);
+    });
   }
 
   setVolume(v) {

@@ -136,6 +136,216 @@ export function makeCryptoWallTexture() {
   return tex;
 }
 
+// Halo radial doux (blanc → transparent) réutilisable comme sprite additif (néon des PEPE,
+// lueur des feux de camp…). La couleur est appliquée via le matériau (color) du sprite.
+let _glowTex = null;
+export function makeRadialGlowTexture() {
+  if (_glowTex) return _glowTex;
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.35, 'rgba(255,255,255,0.55)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+  _glowTex = new THREE.CanvasTexture(canvas);
+  _glowTex.colorSpace = THREE.SRGBColorSpace;
+  return _glowTex;
+}
+
+// Panneau métallique « machine » (niveau 3) : plaque rivetée, grille, bandes danger, jauge,
+// crasse. Répétable pour habiller les murs des couloirs.
+let _machineTex = null;
+export function makeMachinePanelTexture() {
+  if (_machineTex) return _machineTex;
+  const s = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = s;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#23262b';
+  ctx.fillRect(0, 0, s, s);
+  // Plaques (2×2) avec joints.
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(4, 4, s - 8, s - 8);
+  ctx.beginPath();
+  ctx.moveTo(s / 2, 4);
+  ctx.lineTo(s / 2, s - 4);
+  ctx.moveTo(4, s / 2);
+  ctx.lineTo(s - 4, s / 2);
+  ctx.stroke();
+  // Rivets.
+  ctx.fillStyle = '#3a3e45';
+  for (const [x, y] of [[16, 16], [s - 16, 16], [16, s - 16], [s - 16, s - 16], [s / 2 - 12, s / 2], [s / 2 + 12, s / 2]]) {
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Bande danger jaune/noire (en bas).
+  for (let x = 8; x < s - 8; x += 24) {
+    ctx.fillStyle = ((x / 24) | 0) % 2 ? '#c9a12a' : '#161510';
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, s - 30, 24, 16);
+    ctx.clip();
+    ctx.translate(x, s - 30);
+    ctx.fillRect(-10, 0, 44, 16);
+    ctx.restore();
+  }
+  // Jauge (cadran) + petit écran.
+  ctx.strokeStyle = '#5a5f68';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(64, 70, 18, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeStyle = '#ff5a3a';
+  ctx.beginPath();
+  ctx.moveTo(64, 70);
+  ctx.lineTo(76, 60);
+  ctx.stroke();
+  ctx.fillStyle = '#0a1a10';
+  ctx.fillRect(150, 54, 60, 34);
+  ctx.fillStyle = '#39ff9b';
+  ctx.font = 'bold 16px "Courier New", monospace';
+  ctx.fillText('ERR', 158, 76);
+  // Crasse.
+  for (let i = 0; i < 16; i++) {
+    const x = Math.random() * s, y = Math.random() * s, r = 8 + Math.random() * 22;
+    const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, 'rgba(0,0,0,0.22)');
+    gr.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = gr;
+    ctx.fillRect(x - r, y - r, 2 * r, 2 * r);
+  }
+  _machineTex = new THREE.CanvasTexture(canvas);
+  _machineTex.colorSpace = THREE.SRGBColorSpace;
+  _machineTex.wrapS = _machineTex.wrapT = THREE.RepeatWrapping;
+  _machineTex.anisotropy = 4;
+  return _machineTex;
+}
+
+// Fond « labyrinthe » pour le menu : un vrai maze (recursive backtracker) dessiné en traits
+// néon tamisés sur fond sombre. Renvoie un data URL (background-image CSS).
+let _mazeBg = null;
+export function makeMazeBackgroundDataURL() {
+  if (_mazeBg) return _mazeBg;
+  const cols = 18;
+  const rows = 18;
+  const cs = 40;
+  const w = cols * cs;
+  const h = rows * cs;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#070608';
+  ctx.fillRect(0, 0, w, h);
+
+  // Génération du labyrinthe (murs par cellule, creusés en DFS).
+  const cells = Array.from({ length: rows }, () => Array.from({ length: cols }, () => ({ n: true, e: true, s: true, w: true })));
+  const seen = Array.from({ length: rows }, () => new Array(cols).fill(false));
+  const stack = [[0, 0]];
+  seen[0][0] = true;
+  const opp = { n: 's', s: 'n', e: 'w', w: 'e' };
+  while (stack.length) {
+    const [r, c] = stack[stack.length - 1];
+    const nb = [];
+    if (r > 0 && !seen[r - 1][c]) nb.push(['n', r - 1, c]);
+    if (r < rows - 1 && !seen[r + 1][c]) nb.push(['s', r + 1, c]);
+    if (c > 0 && !seen[r][c - 1]) nb.push(['w', r, c - 1]);
+    if (c < cols - 1 && !seen[r][c + 1]) nb.push(['e', r, c + 1]);
+    if (!nb.length) {
+      stack.pop();
+      continue;
+    }
+    const [dir, nr, nc] = nb[(Math.random() * nb.length) | 0];
+    cells[r][c][dir] = false;
+    cells[nr][nc][opp[dir]] = false;
+    seen[nr][nc] = true;
+    stack.push([nr, nc]);
+  }
+
+  // Dessin des murs (traits chauds avec une légère lueur).
+  ctx.strokeStyle = '#6a5330';
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  ctx.shadowColor = 'rgba(255,170,60,0.3)';
+  ctx.shadowBlur = 4;
+  const line = (x1, y1, x2, y2) => {
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  };
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const x = c * cs;
+      const y = r * cs;
+      if (cells[r][c].n) line(x, y, x + cs, y);
+      if (cells[r][c].w) line(x, y, x, y + cs);
+      if (r === rows - 1 && cells[r][c].s) line(x, y + cs, x + cs, y + cs);
+      if (c === cols - 1 && cells[r][c].e) line(x + cs, y, x + cs, y + cs);
+    }
+  }
+  _mazeBg = canvas.toDataURL('image/png');
+  return _mazeBg;
+}
+
+// Planches de bois (pour le chalet) : lattes verticales, veinage, quelques nœuds.
+export function makeWoodTexture() {
+  const s = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = s;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#5a3f22';
+  ctx.fillRect(0, 0, s, s);
+  const planks = 4;
+  const pw = s / planks;
+  const shades = ['#5c4024', '#4f3820', '#63472a', '#563d22'];
+  for (let i = 0; i < planks; i++) {
+    ctx.fillStyle = shades[i % shades.length];
+    ctx.fillRect(i * pw, 0, pw, s);
+    // Joint sombre entre lattes.
+    ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(i * pw, 0);
+    ctx.lineTo(i * pw, s);
+    ctx.stroke();
+    // Veinage.
+    for (let k = 0; k < 6; k++) {
+      ctx.strokeStyle = `rgba(0,0,0,${0.05 + Math.random() * 0.09})`;
+      ctx.lineWidth = 1 + Math.random();
+      const x = i * pw + 5 + Math.random() * (pw - 10);
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.bezierCurveTo(x + (Math.random() - 0.5) * 10, s / 3, x + (Math.random() - 0.5) * 10, (2 * s) / 3, x, s);
+      ctx.stroke();
+    }
+  }
+  // Nœuds.
+  for (let k = 0; k < 3; k++) {
+    const x = Math.random() * s;
+    const y = Math.random() * s;
+    const r = 4 + Math.random() * 5;
+    const gr = ctx.createRadialGradient(x, y, 0, x, y, r * 2);
+    gr.addColorStop(0, 'rgba(26,16,7,0.85)');
+    gr.addColorStop(1, 'rgba(26,16,7,0)');
+    ctx.fillStyle = gr;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 4;
+  return tex;
+}
+
 // Plafond : béton sombre taché (pour que le plafond ne soit pas un aplat noir non texturé).
 export function makeCeilingTexture() {
   const size = 256;
@@ -193,19 +403,21 @@ export function makeControlsTexture() {
   ctx.fillStyle = '#ffdca8';
   ctx.font = 'bold 86px Georgia, "Times New Roman", serif';
   ctx.textAlign = 'center';
-  ctx.fillText('CONTRÔLES', w / 2, 96);
+  ctx.fillText('CONTROLS', w / 2, 96);
 
   const rows = [
-    ['Avancer', 'Z / W / ↑'],
-    ['Reculer', 'S / ↓'],
-    ['Aller à GAUCHE', 'D / →'],
-    ['Aller à DROITE', 'Q / A / ←'],
-    ['Sprint', 'Maj (Shift)'],
-    ['Regarder', 'Souris'],
-    ['Pause', 'Échap'],
+    ['Move forward', 'Z / W / ↑'],
+    ['Move back', 'S / ↓'],
+    ['Go LEFT', 'D / →'],
+    ['Go RIGHT', 'Q / A / ←'],
+    ['Sprint', 'Shift'],
+    ['Jump', 'Space'],
+    ['Crouch', 'Ctrl / C'],
+    ['Look', 'Mouse'],
+    ['Pause', 'Esc'],
   ];
-  ctx.font = '44px Georgia, "Times New Roman", serif';
-  let y = 192;
+  ctx.font = '40px Georgia, "Times New Roman", serif';
+  let y = 166;
   for (const [label, keys] of rows) {
     ctx.textAlign = 'left';
     ctx.fillStyle = '#d7d2c4';
@@ -216,16 +428,16 @@ export function makeControlsTexture() {
     ctx.strokeStyle = 'rgba(255,255,255,0.06)';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(90, y + 30);
-    ctx.lineTo(w - 90, y + 30);
+    ctx.moveTo(90, y + 26);
+    ctx.lineTo(w - 90, y + 26);
     ctx.stroke();
-    y += 62;
+    y += 48;
   }
 
   ctx.textAlign = 'center';
   ctx.fillStyle = '#ff7a7a';
-  ctx.font = 'italic 34px Georgia, serif';
-  ctx.fillText('⚠ gauche et droite sont inversées', w / 2, h - 56);
+  ctx.font = 'italic 30px Georgia, serif';
+  ctx.fillText('⚠ left and right are inverted', w / 2, h - 34);
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -370,6 +582,420 @@ export function makeChartTexture() {
   return tex;
 }
 
+// Plaque/légende sous un tableau (bande sombre, texte gravé).
+export function makeCaptionTexture(text) {
+  const w = 640;
+  const h = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#161009';
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = '#8a6a34';
+  ctx.lineWidth = 5;
+  ctx.strokeRect(8, 8, w - 16, h - 16);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#e8d3a6';
+  ctx.font = 'italic 40px Georgia, serif';
+  ctx.fillText(text, w / 2, h / 2 + 4);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+// Note de lore griffonnée, accrochée aux murs du chalet (charbon sur bois taché).
+export function makeChaletLoreTexture(variant = 0) {
+  const w = 640;
+  const h = 780;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  // Papier sale.
+  ctx.fillStyle = '#1c1a15';
+  ctx.fillRect(0, 0, w, h);
+  const vg = ctx.createRadialGradient(w / 2, h / 2, 40, w / 2, h / 2, w);
+  vg.addColorStop(0, 'rgba(60,52,34,0.35)');
+  vg.addColorStop(1, 'rgba(0,0,0,0.7)');
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, w, h);
+  // Taches.
+  for (let i = 0; i < 14; i++) {
+    const x = Math.random() * w;
+    const y = Math.random() * h;
+    const r = 20 + Math.random() * 50;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, 'rgba(20,8,4,0.4)');
+    g.addColorStop(1, 'rgba(20,8,4,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(x - r, y - r, 2 * r, 2 * r);
+  }
+
+  const sets = [
+    {
+      title: 'BONK',
+      color: '#e0c48a',
+      lines: [
+        'He was Ansem’s dog.',
+        'A loyal shiba. Once.',
+        '',
+        'Then the rot took Ansem —',
+        'and it took BONK too.',
+        '',
+        'He still wears his collar,',
+        'out there in the dark.',
+      ],
+    },
+    {
+      title: 'THE LIGHT',
+      color: '#cbb98f',
+      lines: [
+        'BONK fears fire and light.',
+        'The flames keep him back.',
+        '',
+        'Stay in the glow.',
+        'Run from fire to fire.',
+        '',
+        'Whatever you do —',
+        'never stop in the dark.',
+      ],
+    },
+    {
+      title: 'MY MISTAKE',
+      color: '#d3a9a9',
+      lines: [
+        'I cut my lamp. One second.',
+        'One.',
+        '',
+        'His eyes were already there.',
+        'Two holes of pale light.',
+        '',
+        'You cannot outrun him —',
+        'you can only reach the fire.',
+      ],
+    },
+    {
+      title: 'HUNGER',
+      color: '#cbb98f',
+      lines: [
+        'He does not eat.',
+        'He does not tire.',
+        '',
+        'He only wants to catch you,',
+        'to drag you into the dark',
+        'where the fires never reach.',
+        '',
+        'Keep running.',
+      ],
+    },
+    {
+      title: 'DON’T LOOK',
+      color: '#d3a9a9',
+      lines: [
+        'If you hear his steps,',
+        'do not turn to look.',
+        '',
+        'Run for the light.',
+        'The fire is the only wall',
+        'he cannot cross.',
+      ],
+    },
+  ];
+  const s = sets[variant % sets.length];
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#d8c49a';
+  ctx.font = 'bold 58px Georgia, serif';
+  ctx.fillText(s.title, w / 2, 80);
+
+  ctx.textAlign = 'left';
+  ctx.font = '34px "Courier New", monospace';
+  let y = 165;
+  for (const line of s.lines) {
+    ctx.save();
+    ctx.translate(60, y);
+    ctx.rotate((Math.random() - 0.5) * 0.02);
+    ctx.fillStyle = s.color;
+    ctx.fillText(line, 0, 0);
+    ctx.restore();
+    y += 58;
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+// Visage de BONK pour le screamer plein écran (chien-bête menaçant, yeux rouges, crocs).
+// Renvoie un data URL (utilisé comme src d'une <img>).
+let _bonkFace = null;
+export function makeBonkFaceDataURL() {
+  if (_bonkFace) return _bonkFace;
+  const s = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = s;
+  const ctx = canvas.getContext('2d');
+
+  // Fond sombre vignetté.
+  ctx.fillStyle = '#0a0604';
+  ctx.fillRect(0, 0, s, s);
+  const vg = ctx.createRadialGradient(s / 2, s / 2, 60, s / 2, s / 2, s * 0.72);
+  vg.addColorStop(0, 'rgba(60,30,10,0.5)');
+  vg.addColorStop(1, 'rgba(0,0,0,0.9)');
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, s, s);
+
+  const cx = s / 2;
+  // Oreilles pointues.
+  ctx.fillStyle = '#8a6b32';
+  for (const dir of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(cx + dir * 130, 150);
+    ctx.lineTo(cx + dir * 70, 40);
+    ctx.lineTo(cx + dir * 20, 160);
+    ctx.closePath();
+    ctx.fill();
+  }
+  // Tête (fauve).
+  ctx.fillStyle = '#c39a54';
+  ctx.beginPath();
+  ctx.ellipse(cx, 300, 170, 190, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Museau clair.
+  ctx.fillStyle = '#e6cc90';
+  ctx.beginPath();
+  ctx.ellipse(cx, 380, 95, 105, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Yeux rouges luminescents.
+  ctx.shadowColor = '#ff2a10';
+  ctx.shadowBlur = 40;
+  for (const dir of [-1, 1]) {
+    ctx.fillStyle = '#ff3b1a';
+    ctx.beginPath();
+    ctx.ellipse(cx + dir * 78, 265, 40, 34, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.shadowBlur = 0;
+  // Pupilles fendues.
+  ctx.fillStyle = '#160000';
+  for (const dir of [-1, 1]) {
+    ctx.beginPath();
+    ctx.ellipse(cx + dir * 78, 265, 9, 26, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Truffe.
+  ctx.fillStyle = '#0c0a08';
+  ctx.beginPath();
+  ctx.ellipse(cx, 360, 34, 24, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Gueule ouverte + crocs.
+  ctx.fillStyle = '#180404';
+  ctx.beginPath();
+  ctx.ellipse(cx, 445, 78, 52, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#f4f0e6';
+  for (let i = -2; i <= 2; i++) {
+    // Crocs du haut.
+    ctx.beginPath();
+    ctx.moveTo(cx + i * 28 - 12, 410);
+    ctx.lineTo(cx + i * 28 + 12, 410);
+    ctx.lineTo(cx + i * 28, 448);
+    ctx.closePath();
+    ctx.fill();
+    // Crocs du bas.
+    ctx.beginPath();
+    ctx.moveTo(cx + i * 28 - 12, 485);
+    ctx.lineTo(cx + i * 28 + 12, 485);
+    ctx.lineTo(cx + i * 28, 452);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  _bonkFace = canvas.toDataURL('image/png');
+  return _bonkFace;
+}
+
+// Tableau accroché dans le chalet : explique les règles du niveau forêt.
+export function makeChaletBoardTexture() {
+  const w = 1024;
+  const h = 720;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+
+  // Fond bois sombre + cadre clair.
+  ctx.fillStyle = '#20160d';
+  ctx.fillRect(0, 0, w, h);
+  for (let i = 0; i < 60; i++) {
+    ctx.strokeStyle = `rgba(0,0,0,${0.04 + Math.random() * 0.05})`;
+    ctx.lineWidth = 1 + Math.random() * 2;
+    const y = Math.random() * h;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.bezierCurveTo(w * 0.33, y + (Math.random() - 0.5) * 12, w * 0.66, y + (Math.random() - 0.5) * 12, w, y);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = '#c8a86a';
+  ctx.lineWidth = 12;
+  ctx.strokeRect(26, 26, w - 52, h - 52);
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#ffd9a0';
+  ctx.font = 'bold 66px Georgia, serif';
+  ctx.fillText('THE FOREST', w / 2, 74);
+
+  ctx.textAlign = 'left';
+  ctx.font = '34px Georgia, serif';
+  ctx.fillStyle = '#e9d9bf';
+  const lines = [
+    '• Cross the forest to the way out',
+    '   (the blue glow, far ahead).',
+    '• It is pitch black — follow the FIRES.',
+    '• By a fire you are SAFE:',
+    '   BONK cannot reach you there.',
+  ];
+  let y = 150;
+  for (const line of lines) {
+    ctx.fillText(line, 70, y);
+    y += 52;
+  }
+
+  ctx.fillStyle = '#ff9a5a';
+  ctx.font = 'bold 38px Georgia, serif';
+  ctx.fillText('HOW TO SURVIVE', 70, y + 12);
+  y += 60;
+  ctx.fillStyle = '#e9d9bf';
+  ctx.font = '34px Georgia, serif';
+  const tips = [
+    '• Run from fire to fire. Never stop.',
+    '• He stalks the dark, then CHARGES —',
+    '   listen to his steps grow louder.',
+    '• When he charges, sprint to a fire.',
+  ];
+  for (const line of tips) {
+    ctx.fillText(line, 70, y);
+    y += 50;
+  }
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ff8a5a';
+  ctx.font = 'italic 30px Georgia, serif';
+  ctx.fillText('“Don’t let him catch you.”', w / 2, h - 40);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+// Panneau « SE CACHER » de la salle de départ : explique qu'on peut se planquer dans un coin,
+// lampe éteinte, pour qu'Ansem ne te repère plus.
+export function makeHideHintTexture() {
+  const w = 1024;
+  const h = 640;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#0b0d12';
+  ctx.fillRect(0, 0, w, h);
+  const g = ctx.createRadialGradient(w / 2, h / 2, 40, w / 2, h / 2, w * 0.7);
+  g.addColorStop(0, 'rgba(40,60,50,0.4)');
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = 'rgba(120,255,180,0.5)';
+  ctx.lineWidth = 6;
+  ctx.strokeRect(22, 22, w - 44, h - 44);
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#7dffb0';
+  ctx.shadowColor = '#39ff9b';
+  ctx.shadowBlur = 22;
+  ctx.font = 'bold 92px Georgia, serif';
+  ctx.fillText('HIDE', w / 2, 110);
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = '#dfe6df';
+  ctx.font = '46px Georgia, serif';
+  const lines = [
+    'If he chases and closes in:',
+    'press into a CORNER,',
+    'switch off your flashlight  [F],',
+    'and don’t move.',
+  ];
+  let y = 240;
+  for (const line of lines) {
+    ctx.fillText(line, w / 2, y);
+    y += 74;
+  }
+  ctx.fillStyle = '#ff9a6a';
+  ctx.font = 'italic 40px Georgia, serif';
+  ctx.fillText('In the dark, he can’t see you.', w / 2, h - 66);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+// Panneau « EXIT » avec grosse flèche descendante, planté au-dessus du trou de sortie.
+export function makeExitSignTexture() {
+  const w = 512;
+  const h = 640;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+
+  // Plaque métal sombre + cadre.
+  ctx.fillStyle = '#0a0e0c';
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = 'rgba(60,255,150,0.55)';
+  ctx.lineWidth = 10;
+  ctx.strokeRect(20, 20, w - 40, h - 40);
+
+  // Texte EXIT (vert néon lumineux).
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#57ff9b';
+  ctx.shadowColor = '#39ff88';
+  ctx.shadowBlur = 30;
+  ctx.font = 'bold 190px Arial, sans-serif';
+  ctx.fillText('EXIT', w / 2, 170);
+
+  // Grosse flèche vers le bas (montre le trou).
+  ctx.beginPath();
+  const cx = w / 2;
+  ctx.moveTo(cx - 90, 300);
+  ctx.lineTo(cx + 90, 300);
+  ctx.lineTo(cx + 90, 430);
+  ctx.lineTo(cx + 150, 430);
+  ctx.lineTo(cx, 560);
+  ctx.lineTo(cx - 150, 430);
+  ctx.lineTo(cx - 90, 430);
+  ctx.closePath();
+  ctx.fillStyle = '#57ff9b';
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
 // Affiche « RECHERCHÉ » placée à côté des photos d'Ansem dans la salle de réveil.
 export function makeAnsemPosterTexture() {
   const w = 512;
@@ -388,7 +1014,7 @@ export function makeAnsemPosterTexture() {
   ctx.fillStyle = '#1c160c';
   ctx.textAlign = 'center';
   ctx.font = 'bold 86px Georgia, serif';
-  ctx.fillText('RECHERCHÉ', w / 2, 96);
+  ctx.fillText('WANTED', w / 2, 96);
 
   // Emplacement photo (le portrait réel est un plan séparé par-dessus).
   ctx.fillStyle = '#0e0e10';
@@ -398,9 +1024,178 @@ export function makeAnsemPosterTexture() {
   ctx.font = 'bold 70px Georgia, serif';
   ctx.fillText('ANSEM', w / 2, 545);
   ctx.font = 'italic 36px Georgia, serif';
-  ctx.fillText('« Buy the dip. »', w / 2, 600);
+  ctx.fillText('“Buy the dip.”', w / 2, 600);
   ctx.font = '26px Georgia, serif';
-  ctx.fillText('Ne le laissez pas vous rattraper.', w / 2, 648);
+  ctx.fillText('Don’t let him catch you.', w / 2, 648);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+// Traces de griffures : texture ALPHA (fond transparent) à plaquer sur un plan contre un mur.
+// Une « griffade » = un faisceau de 3–4 entailles parallèles (gouge sombre + lèvre claire
+// arrachée). On en dessine 1–2 par appel, orientées aléatoirement, pour varier chaque mur.
+export function makeClawMarksTexture(seed = 0) {
+  const size = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  // rand déterministe basé sur le seed (évite Math.random pour des murs reproductibles).
+  let s = (seed * 9301 + 49297) % 233280 || 1;
+  const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
+
+  const swipe = (cx, cy, ang, len, n) => {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(ang);
+    ctx.lineCap = 'round';
+    const spread = 22 + rnd() * 16;
+    for (let i = 0; i < n; i++) {
+      const off = (i - (n - 1) / 2) * spread * (0.85 + rnd() * 0.3);
+      const bow = (rnd() - 0.5) * len * 0.25; // courbure de l'entaille
+      const w = 3 + rnd() * 4;
+      // Gouge sombre.
+      ctx.strokeStyle = `rgba(8,5,4,${0.55 + rnd() * 0.3})`;
+      ctx.lineWidth = w;
+      ctx.beginPath();
+      ctx.moveTo(-len / 2, off);
+      ctx.quadraticCurveTo(0, off + bow, len / 2, off + (rnd() - 0.5) * 10);
+      ctx.stroke();
+      // Lèvre claire arrachée (décalée), pour le relief.
+      ctx.strokeStyle = `rgba(210,190,160,${0.12 + rnd() * 0.12})`;
+      ctx.lineWidth = Math.max(1, w * 0.4);
+      ctx.beginPath();
+      ctx.moveTo(-len / 2, off - w * 0.5);
+      ctx.quadraticCurveTo(0, off + bow - w * 0.5, len / 2, off - w * 0.5 + (rnd() - 0.5) * 10);
+      ctx.stroke();
+    }
+    ctx.restore();
+  };
+
+  const swipes = 1 + ((rnd() * 2) | 0);
+  for (let i = 0; i < swipes; i++) {
+    swipe(
+      size * (0.3 + rnd() * 0.4),
+      size * (0.3 + rnd() * 0.4),
+      (rnd() - 0.5) * 1.4 + Math.PI / 2,
+      size * (0.5 + rnd() * 0.35),
+      3 + ((rnd() * 2) | 0)
+    );
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+// Roche de mine : paroi rocheuse sombre (dalles irrégulières + fissures + éclats clairs).
+// Calquée sur makeWoodTexture / makeCeilingTexture (canvas → CanvasTexture répétable).
+export function makeRockTexture() {
+  const s = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = s;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#3a3730';
+  ctx.fillRect(0, 0, s, s);
+  // Blocs de pierre (dalles) légèrement teintés.
+  const shades = ['#403c34', '#34312b', '#454037', '#2f2c26', '#3b372f'];
+  for (let i = 0; i < 26; i++) {
+    ctx.fillStyle = shades[i % shades.length];
+    const w = 30 + Math.random() * 70;
+    const h = 22 + Math.random() * 44;
+    ctx.fillRect(Math.random() * s, Math.random() * s, w, h);
+  }
+  // Joints/fissures sombres.
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+  for (let i = 0; i < 40; i++) {
+    ctx.lineWidth = 0.6 + Math.random() * 2;
+    ctx.beginPath();
+    const x = Math.random() * s;
+    const y = Math.random() * s;
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + (Math.random() - 0.5) * 90, y + (Math.random() - 0.5) * 90);
+    ctx.stroke();
+  }
+  // Éclats/minéraux clairs (piqûres).
+  for (let i = 0; i < 60; i++) {
+    ctx.fillStyle = `rgba(150,140,120,${0.05 + Math.random() * 0.12})`;
+    const r = Math.random() * 2.2;
+    ctx.beginPath();
+    ctx.arc(Math.random() * s, Math.random() * s, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Taches humides sombres (dégradés radiaux).
+  for (let i = 0; i < 8; i++) {
+    const x = Math.random() * s;
+    const y = Math.random() * s;
+    const r = 30 + Math.random() * 50;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, 'rgba(10,10,12,0.4)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(x - r, y - r, 2 * r, 2 * r);
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+// Panneau explicatif du chalet : « rester dans la lumière — BONK craint le feu ».
+export function makeFireHintTexture() {
+  const w = 640;
+  const h = 440;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  // Fond bois sombre + cadre.
+  ctx.fillStyle = '#241a10';
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  for (let i = 0; i < 60; i++) {
+    ctx.fillRect(Math.random() * w, Math.random() * h, Math.random() * 40 + 5, 2);
+  }
+  ctx.strokeStyle = '#5a3f22';
+  ctx.lineWidth = 10;
+  ctx.strokeRect(14, 14, w - 28, h - 28);
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  // Titre.
+  ctx.fillStyle = '#ffcf6a';
+  ctx.shadowColor = '#ff8a2a';
+  ctx.shadowBlur = 24;
+  ctx.font = 'bold 66px Georgia, "Times New Roman", serif';
+  ctx.fillText('STAY IN THE LIGHT', w / 2, 92);
+  ctx.shadowBlur = 0;
+
+  // Flamme dessinée (simple) au centre.
+  const fx = w / 2;
+  const fy = 210;
+  const flame = ctx.createRadialGradient(fx, fy + 20, 4, fx, fy, 70);
+  flame.addColorStop(0, '#fff2b0');
+  flame.addColorStop(0.4, '#ffb028');
+  flame.addColorStop(1, 'rgba(255,90,20,0)');
+  ctx.fillStyle = flame;
+  ctx.beginPath();
+  ctx.moveTo(fx, fy - 70);
+  ctx.quadraticCurveTo(fx + 55, fy, fx, fy + 60);
+  ctx.quadraticCurveTo(fx - 55, fy, fx, fy - 70);
+  ctx.fill();
+
+  // Texte explicatif.
+  ctx.fillStyle = '#e9d9bd';
+  ctx.font = '30px Georgia, serif';
+  ctx.fillText('BONK fears the fire.', w / 2, 300);
+  ctx.fillText('Run campfire to campfire.', w / 2, 342);
+  ctx.fillStyle = '#c99';
+  ctx.font = 'italic 26px Georgia, serif';
+  ctx.fillText('In the dark, he hunts you.', w / 2, 388);
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;

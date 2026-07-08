@@ -21,6 +21,7 @@ export class Maze {
     this.spec = spec;
     if (spec.escape) this.#initEscape(spec.escape);
     else if (spec.generate) this.#initProcedural(spec.generate);
+    else if (spec.map) this.#initMap(spec);
     else this.#initFixed(spec);
   }
 
@@ -114,6 +115,46 @@ export class Maze {
       if (!this.isWall(col, row)) return { col, row };
     }
     return { ...this.exit };
+  }
+
+  // ---------- Construction depuis une carte ASCII fixe (déterministe, mémorisable) ----------
+  // Légende : '#' mur · '.' sol · 'S' spawn joueur · 'X' sortie (trou) · 'P' clé PEPE ·
+  // 'D' porte (fermée au départ) · 'A' recoin d'Ansem (dead-end + spawn monstre).
+  #initMap(spec) {
+    const map = spec.map;
+    this.rows = map.length;
+    this.cols = Math.max(...map.map((l) => l.length));
+    this.size = Math.max(this.cols, this.rows);
+    this.uniformCeil = spec.ceil ?? CEIL_DEFAULT;
+    this.areas = [];
+    this.doors = new Set();
+    this.lowBlocks = new Map();
+    this.lights = spec.lights ?? [];
+    this.controlsWall = null;
+    this.pepeCells = [];
+
+    const grid = Array.from({ length: this.rows }, () => new Array(this.cols).fill(1));
+    for (let row = 0; row < this.rows; row++) {
+      const line = map[row];
+      for (let col = 0; col < this.cols; col++) {
+        const ch = line[col] ?? '#';
+        if (ch === '#') continue; // mur (déjà 1)
+        if (ch === 'D') {
+          // Porte : mur amovible au départ.
+          this.doors.add(`${col},${row}`);
+          this.escapeDoor = { col, row };
+          continue; // reste 1 (fermée)
+        }
+        grid[row][col] = 0; // toute autre lettre = cellule praticable
+        if (ch === 'S') this.playerSpawn = { col, row };
+        else if (ch === 'X') this.exit = { col, row };
+        else if (ch === 'P') this.pepeCells.push({ col, row });
+        else if (ch === 'A') this.deadEnd = { col, row };
+      }
+    }
+    this.grid = grid;
+    this.spawn = this.deadEnd; // le monstre se cache au recoin d'Ansem
+    this.#computeStartYaw(spec.startFacing);
   }
 
   // ---------- Construction fixe ----------

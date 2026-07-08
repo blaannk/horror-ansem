@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import scoresRouter from './routes/scores.js';
 import cryptoRouter from './routes/crypto.js';
+import globalRouter from './routes/global.js';
 import { backend } from './db.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -31,6 +32,7 @@ app.get('/api/health', (_req, res) => {
 
 app.use('/api', scoresRouter);
 app.use('/api', cryptoRouter);
+app.use('/api', globalRouter);
 
 // En production, sert le build statique du client.
 const clientDist = path.join(__dirname, '..', 'client', 'dist');

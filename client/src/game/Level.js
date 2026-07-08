@@ -22,7 +22,7 @@ export class Level {
 
   // Construit le rendu du labyrinthe courant dans le group du niveau.
   buildMazeRenderer() {
-    this.renderer = new MazeRenderer(this.maze, { portal: this.portal });
+    this.renderer = new MazeRenderer(this.maze, { portal: this.portal, exitKind: this.exitKind });
     this.group.add(this.renderer.group);
     this.disposables.push(this.renderer);
   }

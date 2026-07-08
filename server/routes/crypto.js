@@ -11,6 +11,9 @@ router.get('/crypto/status', (_req, res) => {
     enabled: false,
     chain: 'solana',
     token: 'BONK',
+    // Adresse du contrat / wallet affichée sur la page d'accueil.
+    // Renseigner BONK_ADDRESS dans l'environnement quand elle est connue.
+    address: process.env.BONK_ADDRESS || 'TBA',
     features: {
       walletConnect: false,
       rewards: false,
