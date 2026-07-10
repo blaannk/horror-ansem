@@ -19,7 +19,9 @@ export class Hud {
         <div class="hud-keys" data-keys hidden><span class="hud-keys-icon">🐸</span> <span data-keys-count>0 / 0</span></div>
       </div>
       <div class="hud-compass">
-        <div class="hud-compass-arrow"></div>
+        <div class="hud-compass-dial">
+          <div class="hud-compass-arrow"></div>
+        </div>
         <span class="hud-compass-label">EXIT</span>
       </div>
       <div class="hud-minimap" data-minimap hidden>
@@ -28,7 +30,7 @@ export class Hud {
       </div>
       <div class="hud-controls">
         <span class="hud-ctl" data-flashlight>🔦 <b>ON</b></span>
-        <span class="hud-ctl-hint">[F] light · compass ≥20% · map ≥30% sanity</span>
+        <span class="hud-ctl-hint">[F] flashlight</span>
       </div>
       <div class="hud-monitor mh-monitor compact">
         <div class="mh-screen">
@@ -146,15 +148,7 @@ export class Hud {
 
     const toXY = (col, row) => [ox + (col + 0.5) * s, oy + (row + 0.5) * s];
 
-    // Sortie (trou).
-    if (mm.exit) {
-      const [ex, ey] = toXY(mm.exit.col, mm.exit.row);
-      ctx.strokeStyle = 'rgba(57,255,136,0.6)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(ex, ey, Math.max(4, s * 1.7), 0, Math.PI * 2);
-      ctx.stroke();
-    }
+    // (La sortie n'est PAS indiquée sur la mini-carte — seulement les PEPE et le joueur.)
 
     // Clés PEPE non ramassées.
     ctx.shadowColor = '#9bff5a';

@@ -1,0 +1,211 @@
+import * as THREE from 'three';
+
+// Contrôles tactiles (mobile) : joystick de déplacement à gauche, regard au drag à droite,
+// et boutons d'action contextuels (lampe / saut / accroupi selon le chapitre). Remplace le
+// pointer-lock + clavier, indisponibles au tactile. Monté uniquement sur écran tactile.
+
+const LOOK_SENS = 0.0042; // sensibilité du regard (rad par pixel)
+const MAX_PITCH = Math.PI / 2 - 0.05;
+
+export function isTouchDevice() {
+  try {
+    return (
+      window.matchMedia?.('(pointer: coarse)').matches ||
+      'ontouchstart' in window ||
+      navigator.maxTouchPoints > 0
+    );
+  } catch {
+    return false;
+  }
+}
+
+export class TouchControls {
+  // callbacks : { onFlashlight, onPause }
+  constructor(container, { camera, player, onFlashlight, onPause }) {
+    this.container = container;
+    this.camera = camera;
+    this.player = player;
+    this.onFlashlight = onFlashlight;
+    this.onPause = onPause;
+
+    this._euler = new THREE.Euler(0, 0, 0, 'YXZ');
+    this.joyId = null;
+    this.lookId = null;
+    this.joyCenter = { x: 0, y: 0 };
+    this.crouched = false;
+
+    this.root = document.createElement('div');
+    this.root.className = 'touch-controls';
+    this.root.innerHTML = `
+      <div class="touch-joy" data-joy hidden>
+        <div class="touch-joy-knob" data-knob></div>
+      </div>
+      <div class="touch-actions">
+        <button class="touch-btn touch-flash" data-act="flashlight" hidden aria-label="Flashlight">🔦</button>
+        <button class="touch-btn touch-crouch" data-act="crouch" hidden aria-label="Crouch">CROUCH</button>
+        <button class="touch-btn touch-jump" data-act="jump" hidden aria-label="Jump">JUMP</button>
+      </div>
+      <button class="touch-pause" data-pause aria-label="Pause">❚❚</button>
+    `;
+    container.appendChild(this.root);
+
+    this.joyEl = this.root.querySelector('[data-joy]');
+    this.knobEl = this.root.querySelector('[data-knob]');
+    this.flashBtn = this.root.querySelector('[data-act="flashlight"]');
+    this.crouchBtn = this.root.querySelector('[data-act="crouch"]');
+    this.jumpBtn = this.root.querySelector('[data-act="jump"]');
+
+    // Rayon du joystick (en px) — dérivé de la taille rendue de la base.
+    this.joyRadius = 52;
+
+    this.#bind();
+    this.setVisible(false);
+  }
+
+  #bind() {
+    this._onDown = (e) => this.#onDown(e);
+    this._onMove = (e) => this.#onMove(e);
+    this._onUp = (e) => this.#onUp(e);
+    this.root.addEventListener('pointerdown', this._onDown, { passive: false });
+    this.root.addEventListener('pointermove', this._onMove, { passive: false });
+    this.root.addEventListener('pointerup', this._onUp);
+    this.root.addEventListener('pointercancel', this._onUp);
+
+    // Boutons d'action : consomment l'évènement (pas de regard/joystick déclenché derrière).
+    this.flashBtn.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      this.flashBtn.classList.toggle('active');
+      this.onFlashlight?.();
+    });
+    this.jumpBtn.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      this.player.jump();
+    });
+    this.crouchBtn.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      this.crouched = !this.crouched;
+      this.player.setCrouch(this.crouched);
+      this.crouchBtn.classList.toggle('active', this.crouched);
+    });
+    this.root.querySelector('[data-pause]').addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      this.onPause?.();
+    });
+  }
+
+  #onDown(e) {
+    if (e.target.closest('[data-act],[data-pause]')) return; // géré par le bouton
+    e.preventDefault();
+    const leftZone = e.clientX < window.innerWidth * 0.5;
+    if (leftZone && this.joyId === null) {
+      this.joyId = e.pointerId;
+      this.joyCenter = { x: e.clientX, y: e.clientY };
+      this.joyEl.hidden = false;
+      this.joyEl.style.left = `${e.clientX}px`;
+      this.joyEl.style.top = `${e.clientY}px`;
+      this.joyRadius = this.joyEl.offsetWidth / 2 || 52;
+      this.#moveKnob(0, 0);
+    } else if (this.lookId === null) {
+      this.lookId = e.pointerId;
+      this.lookX = e.clientX;
+      this.lookY = e.clientY;
+    } else {
+      return;
+    }
+    try {
+      this.root.setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  #onMove(e) {
+    if (e.pointerId === this.joyId) {
+      e.preventDefault();
+      let dx = e.clientX - this.joyCenter.x;
+      let dy = e.clientY - this.joyCenter.y;
+      const r = this.joyRadius;
+      const len = Math.hypot(dx, dy);
+      if (len > r) {
+        dx = (dx / len) * r;
+        dy = (dy / len) * r;
+      }
+      this.#moveKnob(dx, dy);
+      // strafe +1 = droite ; forward +1 = avant (haut de l'écran = dy négatif).
+      this.player.setMove(dx / r, -dy / r);
+    } else if (e.pointerId === this.lookId) {
+      e.preventDefault();
+      const dx = e.clientX - this.lookX;
+      const dy = e.clientY - this.lookY;
+      this.lookX = e.clientX;
+      this.lookY = e.clientY;
+      this.#applyLook(dx, dy);
+    }
+  }
+
+  #onUp(e) {
+    if (e.pointerId === this.joyId) {
+      this.joyId = null;
+      this.joyEl.hidden = true;
+      this.player.clearMove();
+    } else if (e.pointerId === this.lookId) {
+      this.lookId = null;
+    }
+    try {
+      this.root.releasePointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  #moveKnob(dx, dy) {
+    this.knobEl.style.transform = `translate(-50%, -50%) translate(${dx}px, ${dy}px)`;
+  }
+
+  // Regard : réplique la mécanique de PointerLockControls (euler YXZ + clamp du pitch).
+  #applyLook(dx, dy) {
+    const q = this.camera.quaternion;
+    this._euler.setFromQuaternion(q);
+    this._euler.y -= dx * LOOK_SENS;
+    this._euler.x -= dy * LOOK_SENS;
+    this._euler.x = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, this._euler.x));
+    q.setFromEuler(this._euler);
+  }
+
+  // Jeu de boutons selon le chapitre visible : Ch.1 → lampe · Ch.2 → aucun · Ch.3 → saut + accroupi.
+  setLevelButtons(chapter) {
+    this.flashBtn.hidden = chapter !== 1;
+    this.jumpBtn.hidden = chapter !== 3;
+    this.crouchBtn.hidden = chapter !== 3;
+    // La lampe démarre allumée à chaque niveau (miroir de game.flashlightOn).
+    this.flashBtn.classList.add('active');
+    // Réinitialise l'accroupi entre niveaux.
+    this.crouched = false;
+    this.crouchBtn.classList.remove('active');
+    this.player.setCrouch(false);
+  }
+
+  setVisible(on) {
+    this.root.hidden = !on;
+    if (!on) this.#reset();
+  }
+
+  #reset() {
+    this.joyId = null;
+    this.lookId = null;
+    this.joyEl.hidden = true;
+    this.player.clearMove();
+  }
+
+  destroy() {
+    this.root.removeEventListener('pointerdown', this._onDown);
+    this.root.removeEventListener('pointermove', this._onMove);
+    this.root.removeEventListener('pointerup', this._onUp);
+    this.root.removeEventListener('pointercancel', this._onUp);
+    this.root.remove();
+  }
+}

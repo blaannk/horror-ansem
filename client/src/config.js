@@ -42,7 +42,7 @@ export const MINIMAP_SANITY = 0.3; // ≥ 30 % → carte des PEPE disponible
 // DEV : afficher les 3 fenêtres de lore/niveaux dès le départ (pour pouvoir tester chaque
 // niveau). Passer à false pour le comportement de sortie : seule la 1ère fenêtre est visible,
 // les suivantes apparaissent au fur et à mesure que le joueur atteint le chapitre correspondant.
-export const DEV_SHOW_ALL_LEVELS = true;
+export const DEV_SHOW_ALL_LEVELS = false;
 
 // Réglages exposés dans le menu (réduits à l'essentiel).
 export const SETTINGS_SCHEMA = [

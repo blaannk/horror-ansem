@@ -252,24 +252,54 @@ input[type='range']::-moz-range-thumb {
 }
 /* Boussole : pointe vers la sortie (visible sur la grande map). */
 /* Boussole : cadran rond épinglé EN BAS AU CENTRE, aiguille verte pointant la sortie. */
+/* Boussole : présentée dans une « fenêtre » (même DA que le menu / le moniteur). */
 .hud-compass {
   position: absolute;
-  bottom: 108px;
+  bottom: 100px;
   left: 50%;
   transform: translateX(-50%);
-  width: 88px;
-  height: 88px;
-  border-radius: 50%;
-  border: 2px solid rgba(57, 255, 136, 0.5);
-  background: radial-gradient(circle at 50% 42%, rgba(22, 44, 32, 0.7), rgba(0, 0, 0, 0.72));
-  box-shadow: 0 0 20px rgba(57, 255, 136, 0.28), inset 0 0 18px rgba(0, 0, 0, 0.7);
   display: none;
+  padding: 9px 9px 6px;
+  background: rgba(8, 10, 13, 0.82);
+  border: 1px solid rgba(150, 162, 172, 0.28);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
 }
 .hud-compass.on {
   display: block;
 }
-/* Moyeu central fixe. */
+/* Équerres de coin (signature « fenêtre » du menu). */
+.hud-compass::before,
 .hud-compass::after {
+  content: '';
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  pointer-events: none;
+  border-color: rgba(205, 214, 222, 0.6);
+  border-style: solid;
+}
+.hud-compass::before {
+  top: -1px;
+  left: -1px;
+  border-width: 1px 0 0 1px;
+}
+.hud-compass::after {
+  bottom: -1px;
+  right: -1px;
+  border-width: 0 1px 1px 0;
+}
+/* Cadran rond (à l'intérieur de la fenêtre). */
+.hud-compass-dial {
+  position: relative;
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  border: 1px solid rgba(57, 255, 136, 0.45);
+  background: radial-gradient(circle at 50% 42%, rgba(22, 44, 32, 0.7), rgba(0, 0, 0, 0.72));
+  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.7);
+}
+/* Moyeu central fixe. */
+.hud-compass-dial::after {
   content: '';
   position: absolute;
   top: 50%;
@@ -313,12 +343,12 @@ input[type='range']::-moz-range-thumb {
   background: rgba(120, 150, 135, 0.45);
 }
 .hud-compass-label {
-  position: absolute;
-  bottom: -22px;
-  left: 0;
-  right: 0;
+  display: block;
+  margin-top: 5px;
   text-align: center;
-  font-size: 0.62rem;
+  font-family: var(--font-ui);
+  text-transform: uppercase;
+  font-size: 0.6rem;
   letter-spacing: 3px;
   color: var(--exit);
   text-shadow: 0 0 6px rgba(0, 0, 0, 0.95);
@@ -341,15 +371,17 @@ input[type='range']::-moz-range-thumb {
   font-size: 0.6rem;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: rgba(155, 255, 90, 0.9);
+  color: #d6dde3;
   text-align: center;
+  padding-bottom: 5px;
   margin-bottom: 6px;
+  border-bottom: 1px solid rgba(150, 162, 172, 0.22);
 }
 .hud-minimap-canvas {
   display: block;
-  width: 190px;
-  height: 190px;
-  border-radius: 6px;
+  width: 150px;
+  height: 150px;
+  border-radius: 0;
   background: #05070a;
 }
 .hud-stamina {
@@ -373,15 +405,39 @@ input[type='range']::-moz-range-thumb {
 .hud-stamina-fill.low {
   background: var(--blood);
 }
+/* Mini-carte PEPE : même « fenêtre » que le menu / le moniteur. */
 .hud-minimap {
   position: absolute;
   top: 16px;
+  left: auto; /* annule le left:18px hérité — sinon left+right = pleine largeur */
   right: 16px;
-  width: 160px;
-  height: 160px;
-  background: rgba(0, 0, 0, 0.55);
-  border: 1px solid #2c2c36;
-  border-radius: 8px;
+  width: auto;
+  height: auto;
+  padding: 8px 10px 10px;
+  background: rgba(8, 10, 13, 0.82);
+  border: 1px solid rgba(150, 162, 172, 0.28);
+  border-radius: 0;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+}
+.hud-minimap::before,
+.hud-minimap::after {
+  content: '';
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  pointer-events: none;
+  border-color: rgba(205, 214, 222, 0.6);
+  border-style: solid;
+}
+.hud-minimap::before {
+  top: -1px;
+  left: -1px;
+  border-width: 1px 0 0 1px;
+}
+.hud-minimap::after {
+  bottom: -1px;
+  right: -1px;
+  border-width: 0 1px 1px 0;
 }
 
 /* ---------------- CINÉMATIQUE ---------------- */
@@ -864,9 +920,10 @@ input[type='range']::-moz-range-thumb {
   50% { transform: translateY(7px); opacity: 1; }
 }
 .landing-title {
-  font-size: clamp(2.6rem, 9vw, 5.4rem);
+  font-size: clamp(1.5rem, 8.5vw, 5.4rem);
   font-weight: 900;
   letter-spacing: 4px;
+  overflow-wrap: break-word;
   text-shadow: 0 0 34px rgba(225, 29, 43, 0.35), 0 0 70px rgba(255, 47, 47, 0.15);
   animation: title-flicker 6s infinite;
 }
@@ -1753,6 +1810,16 @@ kbd {
   max-height: 300px;
   overflow-y: auto;
 }
+/* Scroll conservé mais barre masquée (leaderboards du menu). */
+.leaderboard {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge legacy */
+}
+.leaderboard::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none; /* Chrome/Safari */
+}
 .win-board .board-note {
   margin-top: 10px;
 }
@@ -1837,4 +1904,237 @@ kbd {
   letter-spacing: 2px;
   color: #d6dde3;
   font-size: 0.64rem;
+}
+
+/* ============================================================
+   MENU — VERSION MOBILE (barre du haut, hero, pas de débordement)
+   ============================================================ */
+.landing {
+  overflow-x: hidden; /* jamais de scroll horizontal */
+}
+@media (max-width: 620px) {
+  /* Titre en haut à gauche retiré sur mobile. */
+  .landing-logo {
+    display: none;
+  }
+  .landing-nav {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  /* Barre du haut : rang à gauche · son au milieu · How it works à droite. */
+  .landing-nav-right {
+    width: 100%;
+    gap: 6px;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .landing-vol input[type='range'] {
+    width: 52px;
+  }
+  .landing-nav-right .btn-ghost {
+    padding: 6px 9px;
+    font-size: 0.74rem;
+    white-space: nowrap;
+  }
+  /* Fenêtre des contrôles PC (tableau des touches) : inutile au tactile → masquée. */
+  .howto-block-controls {
+    display: none;
+  }
+  .landing-title {
+    font-size: clamp(1.1rem, 5.8vw, 1.9rem);
+    line-height: 1.1;
+    letter-spacing: 1px;
+    margin-bottom: 14px;
+    white-space: normal;
+    overflow-wrap: break-word;
+  }
+  .rank-chip {
+    padding: 4px 9px;
+  }
+  .landing-hero {
+    padding: 26px 14px 30px;
+  }
+  .hero-widgets {
+    width: 94vw;
+    gap: 20px;
+  }
+  /* Le contrat crypto ne doit pas déborder. */
+  .crypto-addr code,
+  .crypto-addr {
+    word-break: break-all;
+  }
+}
+
+/* ============================================================
+   CONTRÔLES TACTILES (mobile) — joystick, regard, boutons, pause
+   ============================================================ */
+.touch-controls {
+  position: fixed;
+  inset: 0;
+  z-index: 6; /* au-dessus du HUD (5), sous les overlays (10) */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.touch-controls[hidden] {
+  display: none;
+}
+
+/* Joystick flottant (apparaît sous le doigt, moitié gauche). */
+.touch-joy {
+  position: fixed;
+  width: clamp(84px, 26vmin, 128px);
+  height: clamp(84px, 26vmin, 128px);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 0 24px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+.touch-joy[hidden] {
+  display: none;
+}
+.touch-joy-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44%;
+  height: 44%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 0 16px rgba(0, 0, 0, 0.55);
+}
+
+/* Boutons d'action (bas droite). */
+.touch-actions {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 12px;
+  pointer-events: none;
+}
+.touch-btn {
+  pointer-events: auto;
+  width: clamp(52px, 15vmin, 74px);
+  height: clamp(52px, 15vmin, 74px);
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  background: rgba(12, 12, 16, 0.55);
+  color: #fff;
+  font-family: var(--font-ui, sans-serif);
+  font-weight: 800;
+  font-size: 0.7rem;
+  letter-spacing: 1px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(3px);
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.touch-btn[hidden] {
+  display: none;
+}
+.touch-btn:active {
+  transform: scale(0.92);
+}
+.touch-flash {
+  font-size: 1.5rem;
+}
+.touch-flash.active {
+  border-color: var(--bonk, #e11d2b);
+  color: #ffe9c2;
+  box-shadow: 0 0 18px rgba(225, 29, 43, 0.5);
+}
+.touch-crouch.active {
+  border-color: var(--exit, #39ff88);
+  color: var(--exit, #39ff88);
+  box-shadow: 0 0 16px rgba(57, 255, 136, 0.4);
+}
+
+/* Bouton pause (haut gauche — remplace Échap). */
+.touch-pause {
+  position: fixed;
+  top: max(8px, env(safe-area-inset-top));
+  left: max(8px, env(safe-area-inset-left));
+  pointer-events: auto;
+  width: clamp(38px, 9vmin, 46px);
+  height: clamp(38px, 9vmin, 46px);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(12, 12, 16, 0.55);
+  color: #fff;
+  font-size: 0.7rem;
+  letter-spacing: 2px;
+  backdrop-filter: blur(3px);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* HUD adapté au tactile : plus d'indications de touches PC, agencement anti-chevauchement. */
+.touch-mode .hud-controls {
+  display: none;
+}
+.touch-mode .hud-top {
+  top: 8px;
+}
+.touch-mode .hud-timer {
+  font-size: 1.4rem;
+}
+.touch-mode .hud-monitor {
+  top: max(8px, env(safe-area-inset-top));
+  right: max(8px, env(safe-area-inset-right));
+  bottom: auto;
+  width: clamp(118px, 30vmin, 168px);
+}
+.touch-mode .mh-monitor.compact .mh-plot {
+  height: clamp(52px, 12vmin, 82px);
+}
+/* Mini-carte PEPE (basse santé) : haut gauche sous la pause, réduite. */
+.touch-mode .hud-minimap {
+  top: 56px;
+  left: max(8px, env(safe-area-inset-left));
+  right: auto;
+  width: auto;
+  height: auto;
+}
+.touch-mode .hud-minimap-canvas {
+  width: clamp(92px, 22vmin, 128px);
+  height: clamp(92px, 22vmin, 128px);
+}
+
+/* Overlay « tournez l'appareil » : bloque le jeu en portrait (fallback iOS pour le paysage). */
+.rotate-prompt {
+  position: fixed;
+  inset: 0;
+  z-index: 80; /* au-dessus de tout, même des overlays */
+  display: none;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: #05050a;
+  color: #f3ece2;
+  font-family: var(--font-ui, sans-serif);
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  line-height: 1.8;
+}
+.rotate-prompt span {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.85rem;
+  letter-spacing: 3px;
+  color: var(--bonk, #e11d2b);
+}
+@media (orientation: portrait) {
+  .touch-mode .rotate-prompt {
+    display: flex;
+  }
 }

@@ -34,7 +34,7 @@ export class Landing {
       </header>
 
       <section class="landing-hero" data-top>
-        <h1 class="landing-title">ESCAPE&nbsp;<span class="bonk">ANSEM</span></h1>
+        <h1 class="landing-title">ESCAPE <span class="bonk">ANSEM</span></h1>
         <p class="landing-pitch">
           Your <span class="bonk">sanity</span> <em>is</em> the shared $BONK market cap — pump it and everyone
           heals, let it bleed and everyone rots. Get out before the market breaks you.
@@ -79,13 +79,12 @@ export class Landing {
           <div class="cf cf-up">
             <span class="cf-icon">${icon('chart-up', { size: 30 })}</span>
             <b>Market cap UP → sanity rises</b>
-            <span>You move faster, you keep your <strong>compass</strong> &amp; <strong>PEPE map</strong>, and Ansem
-            loses your trail. Escape becomes possible.</span>
+            <span>You move faster and Ansem loses your trail. Escape becomes possible.</span>
           </div>
           <div class="cf cf-down">
             <span class="cf-icon">${icon('chart-down', { size: 30 })}</span>
             <b>Market cap DOWN → sanity collapses</b>
-            <span>Ansem is <strong>always faster</strong> and your aids vanish into the dark.
+            <span>Ansem is <strong>always faster</strong> and hunts you relentlessly through the dark.
             Below the threshold, escape is <strong>nearly impossible</strong>.</span>
           </div>
         </div>
@@ -97,7 +96,7 @@ export class Landing {
             Thread the maze while the charts crash, then a door opens and something starts hunting.
             Find the way out before it finds you.</p>
           </section>
-          <section class="howto-block">
+          <section class="howto-block howto-block-controls">
             <h2>Controls</h2>
             <table class="howto-keys">
               <tr><td>Move</td><td><kbd>Z</kbd>/<kbd>W</kbd> · <kbd>S</kbd> (or ↑ / ↓)</td></tr>
@@ -116,8 +115,6 @@ export class Landing {
               you. High sanity even makes <em>you</em> faster.</li>
               <li><strong>Flashlight (F)</strong> — turn it <strong>off</strong>, stand <strong>still</strong> in a
               <strong>corner</strong>, and it may walk right past you.</li>
-              <li><strong>Compass &amp; map</strong> — appear automatically while your sanity holds up
-              (compass ≥ 20%, map ≥ 30%); they point you toward the way out and whatever you must collect.</li>
               <li><strong>Get caught</strong> and it lunges into a full-screen scream. Then it's over.</li>
             </ul>
           </section>

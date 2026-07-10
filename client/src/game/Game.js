@@ -6,6 +6,7 @@ import { Hud } from '../ui/Hud.js';
 import { EndScreen } from '../ui/EndScreen.js';
 import { LEVELS } from './levels.js';
 import { chapterReached, bumpLocalMaxChapter } from './progress.js';
+import { TouchControls, isTouchDevice } from './TouchControls.js';
 import {
   CELL,
   MONSTER_CATCH_DIST,
@@ -30,6 +31,7 @@ export class Game {
     this.config = config;
     this.onExitToMenu = onExitToMenu;
     this.startIndex = Math.max(0, Math.min(LEVELS.length - 1, startIndex | 0)); // niveau de départ (sélection menu)
+    this.isTouch = isTouchDevice(); // mobile : contrôles tactiles + paysage forcé, pas de pointer-lock
     this.state = 'ready'; // ready | running | paused | transition | over
     this.inputLocked = false;
     this.started = false;
@@ -52,6 +54,7 @@ export class Game {
     this.#setupScene();
     this.#setupOverlays();
     this.#setupSanityControl();
+    this.#setupTouch();
 
     this._onResize = () => this.#resize();
     window.addEventListener('resize', this._onResize);
@@ -198,7 +201,11 @@ export class Game {
     this.ready.innerHTML = `
       <div class="overlay-box">
         <h2>Ready?</h2>
-        <p>Click to lock the mouse. You're about to wake up…</p>
+        <p>${
+          this.isTouch
+            ? 'Tap Start (landscape). You’re about to wake up…'
+            : 'Click to lock the mouse. You’re about to wake up…'
+        }</p>
         <button class="btn-primary" data-start>Start</button>
       </div>`;
     this.container.appendChild(this.ready);
@@ -221,7 +228,10 @@ export class Game {
         <button class="btn-ghost" data-quit>Back to menu</button>
       </div>`;
     this.container.appendChild(this.pause);
-    this.pause.querySelector('[data-resume]').addEventListener('click', () => this.player.controls.lock());
+    this.pause.querySelector('[data-resume]').addEventListener('click', () => {
+      if (this.isTouch) this.#activateTouch();
+      else this.player.controls.lock();
+    });
     this.pause.querySelector('[data-quit]').addEventListener('click', () => this.#exitToMenu());
 
     // Curseur de santé mentale (accessible dès la pause / Échap).
@@ -346,10 +356,82 @@ export class Game {
     this.flashlightOn = !this.flashlightOn;
     this.hud.setFlashlight(this.flashlightOn);
   }
+  // Passe-plat public (bouton tactile).
+  toggleFlashlight() {
+    this.#toggleFlashlight();
+  }
+
+  // ----- Tactile (mobile) -----
+  #setupTouch() {
+    if (!this.isTouch) return;
+    document.body.classList.add('touch-mode');
+    this.touch = new TouchControls(this.container, {
+      camera: this.camera,
+      player: this.player,
+      onFlashlight: () => this.#toggleFlashlight(),
+      onPause: () => this.#pauseTouch(),
+    });
+    // Invite à passer en paysage (portrait → overlay bloquant, piloté par CSS).
+    this.rotateEl = document.createElement('div');
+    this.rotateEl.className = 'rotate-prompt';
+    this.rotateEl.innerHTML = '<div>📱↻<br/>Rotate your device<br/><span>landscape only</span></div>';
+    this.container.appendChild(this.rotateEl);
+  }
+
+  // Démarre/reprend la partie au tactile (sans pointer-lock) : équivalent de #onLock.
+  #activateTouch() {
+    this.ready.classList.add('hidden');
+    this.pause.classList.add('hidden');
+    this.audio.resume();
+    if (this.state === 'over') return;
+    if (!this.started) {
+      this.started = true;
+      this.#startLevel(this.startIndex);
+      this.state = 'running';
+    } else if (this.state === 'paused') {
+      this.state = 'running';
+    }
+    this.player.touchMode = true;
+    this.touch?.setVisible(true);
+  }
+
+  #pauseTouch() {
+    if (this.state !== 'running') return;
+    this.state = 'paused';
+    this.#syncSanitySlider();
+    this.pause.classList.remove('hidden');
+    this.audio.suspend();
+    this.#clearSubtitle();
+    this.player.touchMode = false;
+    this.touch?.setVisible(false);
+  }
+
+  // Plein écran + verrouillage paysage (Android). iOS ignore le lock → l'overlay CSS prend le relais.
+  #enterLandscape() {
+    try {
+      const p = document.documentElement.requestFullscreen?.({ navigationUI: 'hide' });
+      Promise.resolve(p)
+        .then(() => screen.orientation?.lock?.('landscape'))
+        .catch(() => {});
+    } catch {
+      /* ignore */
+    }
+  }
+
+  #checkOrientation() {
+    if (!this.isTouch || !this.started) return;
+    const portrait = window.matchMedia?.('(orientation: portrait)').matches;
+    if (portrait && this.state === 'running') this.#pauseTouch();
+  }
 
   #begin() {
     this.audio.start();
-    this.player.controls.lock();
+    if (this.isTouch) {
+      this.#enterLandscape();
+      this.#activateTouch();
+    } else {
+      this.player.controls.lock();
+    }
   }
 
   #onLock() {
@@ -434,6 +516,8 @@ export class Game {
     if (level.portal) this.setPortalActive(this.keysTotal === 0);
 
     this.setObjective(level.objective || '');
+    // Jeu de boutons tactiles selon le chapitre (Ch.1 lampe · Ch.2 aucun · Ch.3 saut+accroupi).
+    this.touch?.setLevelButtons(chapterReached(i + 1));
     this.inputLocked = false;
     level.enter(this);
   }
@@ -649,6 +733,7 @@ export class Game {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.#checkOrientation();
   }
 
   destroy() {
@@ -659,6 +744,22 @@ export class Game {
     document.removeEventListener('keydown', this._onSanityKey);
     document.removeEventListener('keydown', this._onAbilityKey);
     if (window.escapeBonk) delete window.escapeBonk;
+    // Tactile : libère l'orientation + le plein écran et retire l'UI tactile.
+    if (this.isTouch) {
+      document.body.classList.remove('touch-mode');
+      try {
+        screen.orientation?.unlock?.();
+      } catch {
+        /* ignore */
+      }
+      try {
+        if (document.fullscreenElement) document.exitFullscreen?.();
+      } catch {
+        /* ignore */
+      }
+      this.touch?.destroy();
+      this.rotateEl?.remove();
+    }
     this.#clearSubtitle();
     if (this.level) this.level.dispose();
     this.player.dispose();

@@ -34,8 +34,33 @@ export class Player {
 
     this.keys = { forward: false, back: false, left: false, right: false, sprint: false, crouch: false };
 
+    // --- Entrée tactile (mobile) ---
+    // touchMode : quand vrai, update() tourne sans pointer-lock (piloté par TouchControls).
+    // analog : { strafe, forward } dans [-1..1] (strafe +1 = droite, forward +1 = avant).
+    this.touchMode = false;
+    this.analog = null;
+    this.analogSprint = false;
+
     if (maze) this.setMaze(maze);
     this.#bindKeys();
+  }
+
+  // Vecteur de déplacement analogique (joystick). strafe/forward ∈ [-1..1].
+  setMove(strafe, forward) {
+    this.analog = { strafe, forward };
+    this.analogSprint = Math.hypot(strafe, forward) > 0.92; // poussée à fond = sprint
+  }
+  clearMove() {
+    this.analog = null;
+    this.analogSprint = false;
+  }
+  // Saut déclenché par un bouton tactile (consommé au prochain update, comme la touche Espace).
+  jump() {
+    this._jump = true;
+  }
+  // Accroupi en bascule (bouton tactile).
+  setCrouch(on) {
+    this.keys.crouch = !!on;
   }
 
   #floorAt(col, row) {
@@ -137,7 +162,8 @@ export class Player {
   }
 
   update(dt) {
-    if (!this.controls.isLocked) {
+    // Desktop : piloté par le pointer-lock. Mobile : par TouchControls (touchMode).
+    if (!this.controls.isLocked && !this.touchMode) {
       this.moving = false;
       this._jump = false;
       return;
@@ -152,12 +178,20 @@ export class Player {
     const targetEye = this.crouching ? CROUCH_EYE : EYE_HEIGHT;
     this.eyeHeight += (targetEye - this.eyeHeight) * Math.min(1, dt * 12);
 
-    // Direction d'entrée (repère caméra horizontal).
-    const inputF = (this.keys.forward ? 1 : 0) - (this.keys.back ? 1 : 0);
-    const inputR = (this.keys.right ? 1 : 0) - (this.keys.left ? 1 : 0);
-    this.moving = inputF !== 0 || inputR !== 0;
+    // Direction d'entrée (repère caméra horizontal). Au tactile : joystick analogique ;
+    // au clavier : touches booléennes. inputR positif = vecteur « right » interne (cf. desktop),
+    // donc un strafe joystick vers la droite correspond à inputR = -strafe.
+    let inputF, inputR;
+    if (this.analog) {
+      inputF = this.analog.forward;
+      inputR = -this.analog.strafe;
+    } else {
+      inputF = (this.keys.forward ? 1 : 0) - (this.keys.back ? 1 : 0);
+      inputR = (this.keys.right ? 1 : 0) - (this.keys.left ? 1 : 0);
+    }
+    this.moving = Math.hypot(inputF, inputR) > 0.06;
 
-    this.sprinting = this.keys.sprint && this.moving && !this.crouching;
+    this.sprinting = (this.keys.sprint || this.analogSprint) && this.moving && !this.crouching;
     let speed = (this.sprinting ? cfg.playerSprint : cfg.playerWalk) * this.speedMult;
     if (this.crouching) speed = Math.min(speed, PLAYER_CROUCH_SPEED * this.speedMult);
 
