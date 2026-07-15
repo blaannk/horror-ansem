@@ -1,14 +1,20 @@
 import { Router } from 'express';
-import { addScore, topScores, progressBoard, playerRank } from '../db.js';
+import { addScore, topScores, progressBoard, playerRank, consumeRunNonce } from '../db.js';
 import { enrich, percentOf, badgesOf } from '../progress.js';
+import { verifyRunToken, requireRunToken } from '../runToken.js';
+import { verifySession } from '../auth.js';
 
 const router = Router();
 
 const DIFFICULTIES = new Set(['facile', 'normal', 'cauchemar', 'custom']);
 
-// POST /api/scores  — soumettre un run (victoire OU mort : on enregistre l'avancement).
+// Tolérance temporelle (latence réseau + dérive d'horloge) sur la cohérence du chrono.
+const TIME_SKEW_MS = 15_000;
+
+// POST /api/scores  - soumettre un run (victoire OU mort : on enregistre l'avancement).
 router.post('/scores', async (req, res) => {
-  const { name, time_ms, maze_size, difficulty, level_reached, player_id, won } = req.body ?? {};
+  const { name, time_ms, maze_size, difficulty, level_reached, won, run_token, auth_token } =
+    req.body ?? {};
 
   const cleanName = String(name ?? 'Anonyme').trim().slice(0, 24) || 'Anonyme';
   const ms = Number(time_ms);
@@ -16,17 +22,49 @@ router.post('/scores', async (req, res) => {
   const diff = DIFFICULTIES.has(difficulty) ? difficulty : 'normal';
   const levelNum = Number(level_reached);
   const level = Number.isFinite(levelNum) ? Math.min(Math.max(Math.round(levelNum), 1), 99) : 1;
-  const pid = player_id != null ? String(player_id).trim().slice(0, 64) || null : null;
-  // Plausibilité (garde-fou anti-triche léger — PAS une validation autoritative côté serveur) :
+  // Identité : le wallet vérifié est OBLIGATOIRE pour être classé (enforcement plus bas).
+  const session = auth_token ? verifySession(auth_token) : { ok: false };
+  // Plausibilité (garde-fou anti-triche léger - PAS une validation autoritative côté serveur) :
   //  - aucun run réel ne dure moins de ~1,5 s (animations de réveil + déplacement) → rejet ;
   //  - « won » n'est cohérent qu'en ayant atteint le dernier chapitre (level_reached ≥ 5).
   const didWin = (won === undefined ? true : Boolean(won)) && level >= 5;
 
   if (!Number.isFinite(ms) || ms < 1500 || ms > 1000 * 60 * 60) {
-    return res.status(400).json({ error: 'time_ms invalide' });
+    return res.status(400).json({ error: 'invalid time_ms' });
   }
   if (!Number.isFinite(size) || size < 5 || size > 101) {
-    return res.status(400).json({ error: 'maze_size invalide' });
+    return res.status(400).json({ error: 'invalid maze_size' });
+  }
+
+  // Wallet OBLIGATOIRE : sans session vérifiée, pas d'entrée au classement. L'identité est
+  // l'adresse VÉRIFIÉE — le client ne peut pas usurper un autre wallet.
+  if (!session.ok) {
+    return res.status(401).json({ error: 'wallet required to be ranked', reason: 'auth' });
+  }
+  const pid = session.wallet;
+
+  // Anti-triche : jeton de run signé (si activé via RUN_TOKEN_SECRET). Voir runToken.js.
+  if (requireRunToken()) {
+    const v = verifyRunToken(run_token);
+    if (!v.ok) {
+      return res.status(403).json({ error: 'run not verified', reason: v.reason });
+    }
+    // On ne peut pas avoir joué plus vite que le temps réel écoulé depuis le départ du run.
+    const elapsed = Date.now() - v.startedAt;
+    if (ms > elapsed + TIME_SKEW_MS) {
+      return res.status(403).json({ error: 'time inconsistent with real elapsed time' });
+    }
+    // Usage unique : rejette le rejeu du même run (même jeton soumis deux fois).
+    let fresh;
+    try {
+      fresh = await consumeRunNonce(v.nonce);
+    } catch (err) {
+      console.error('[scores] échec consumeRunNonce :', err.message);
+      return res.status(500).json({ error: 'database error' });
+    }
+    if (!fresh) {
+      return res.status(409).json({ error: 'run already submitted' });
+    }
   }
 
   try {
@@ -55,7 +93,7 @@ router.post('/scores', async (req, res) => {
     });
   } catch (err) {
     console.error('[scores] échec addScore :', err.message);
-    res.status(500).json({ error: 'erreur base de données' });
+    res.status(500).json({ error: 'database error' });
   }
 });
 
@@ -92,7 +130,7 @@ router.get('/leaderboard', async (req, res) => {
     res.json({ difficulty: diff, sort: legacySort, scores });
   } catch (err) {
     console.error('[scores] échec leaderboard :', err.message);
-    res.status(500).json({ error: 'erreur base de données' });
+    res.status(500).json({ error: 'database error' });
   }
 });
 

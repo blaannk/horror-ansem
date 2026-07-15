@@ -7,7 +7,7 @@ import { makeMachinePanelTexture, makeCeilingTexture } from './textures.js';
 import { trophyProp } from './props.js';
 
 // =============================================================
-// Salle finale — LA SORTIE : après avoir traversé le portail du niveau 3, le joueur arrive dans
+// Salle finale - LA SORTIE : après avoir traversé le portail du niveau 3, le joueur arrive dans
 // une pièce SPHÉRIQUE (même skin « machine » que le niveau 3 mais bien éclairée), avec un trophée
 // sur un piédestal au centre. Interagir (E) avec le trophée termine le jeu (écran de victoire).
 // =============================================================
@@ -77,7 +77,7 @@ export class VictoryLevel extends Level {
     });
     game.monster.setMode('none');
     game.monster.setVisible(false);
-    game.setObjective('You made it out. Claim your prize — press E at the trophy.');
+    game.setObjective('You made it out. Claim your prize, press E at the trophy.');
   }
 
   update(dt) {

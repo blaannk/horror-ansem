@@ -1,7 +1,7 @@
 // Configuration du jeu : valeurs par défaut + presets de difficulté.
 // Les vitesses sont en unités/seconde. 1 cellule de labyrinthe = CELL unités.
 
-export const CELL = 6; // taille d'une cellule (unités monde) — couloirs plus larges, meilleurs angles de vue
+export const CELL = 6; // taille d'une cellule (unités monde) - couloirs plus larges, meilleurs angles de vue
 export const WALL_HEIGHT = 5.2; // couloirs hauts → la créature peut se dresser et surplomber
 export const EYE_HEIGHT = 1.7;
 export const PLAYER_RADIUS = 0.45; // pour les collisions
@@ -11,7 +11,7 @@ export const GRAVITY = 26; // gravité (unités/s²)
 export const JUMP_VEL = 8.5; // vitesse initiale de saut (apex ≈ 1.4 u)
 export const CROUCH_EYE = 1.0; // hauteur des yeux accroupi
 export const PLAYER_CROUCH_SPEED = 3.2; // vitesse de déplacement accroupi
-export const MONSTER_CATCH_DIST = 2.5; // distance de capture (game over) — près de toi = attrapé
+export const MONSTER_CATCH_DIST = 2.5; // distance de capture (game over) - près de toi = attrapé
 
 // Map finale & poursuite :
 export const FINAL_MAZE_SIZE = 41; // côté du labyrinthe final (procédural, ramifié + pièces)
@@ -45,16 +45,16 @@ export const MINIMAP_SANITY = 0.3; // ≥ 30 % → carte des PEPE disponible
 export const DEV_SHOW_ALL_LEVELS = false;
 
 // Réglages exposés dans le menu (réduits à l'essentiel).
+// La santé mentale n'est PLUS réglable ici : elle est pilotée côté serveur (market cap
+// on-chain du token) et lue en continu par le jeu. Aucun contrôle joueur exposé.
 export const SETTINGS_SCHEMA = [
   { key: 'playerWalk', label: 'Player speed', min: 3, max: 9, step: 0.5, unit: '' },
-  { key: 'sanityStart', label: 'Starting sanity', min: 0, max: 1, step: 0.05, unit: '' },
   { key: 'volume', label: 'Volume', min: 0, max: 1, step: 0.05, unit: '' },
 ];
 
 export const DEFAULT_CONFIG = {
   // Exposés dans le menu :
   playerWalk: 5.5,
-  sanityStart: 1, // santé mentale initiale [0..1] — pilotée ensuite par une source externe
   volume: 0.8,
   // Valeurs fixes non exposées (carte/monstre conçus autour) :
   playerSprint: 10,

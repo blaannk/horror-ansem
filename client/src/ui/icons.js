@@ -1,4 +1,4 @@
-// Icônes SVG inline (monochromes, dessinées via currentColor) — remplacent les emojis du menu
+// Icônes SVG inline (monochromes, dessinées via currentColor) - remplacent les emojis du menu
 // pour un rendu plus stylé et cohérent avec le thème horreur/crypto. Chaque icône hérite de la
 // couleur du texte parent ; on la colore donc en CSS (var(--bonk), var(--accent)…).
 

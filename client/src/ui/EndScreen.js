@@ -10,14 +10,16 @@ import {
   getPlayerName,
   setPlayerName,
 } from '../game/progress.js';
+import { connectWallet, disconnectWallet, getAuthToken, isConnected, shortWallet } from '../game/wallet.js';
 import { icon } from './icons.js';
 
 export class EndScreen {
-  constructor(container, { won, timeMs, config, levelReached = 1, onReplay, onMenu }) {
+  constructor(container, { won, timeMs, config, levelReached = 1, runToken = null, onReplay, onMenu }) {
     this.container = container;
     this.config = config;
     this.timeMs = timeMs;
     this.levelReached = levelReached;
+    this.runToken = runToken;
     this.won = won;
     this.onReplay = onReplay;
     this.onMenu = onMenu;
@@ -33,7 +35,7 @@ export class EndScreen {
     document.body.appendChild(this.root);
 
     // À la sortie de l'écran (rejouer / menu), on enregistre le run une dernière fois si le joueur
-    // n'a pas cliqué « Save my name » — ainsi mort ET victoire sont enregistrées, mais UNE seule
+    // n'a pas cliqué « Save my name » - ainsi mort ET victoire sont enregistrées, mais UNE seule
     // fois (garde `submitted`), sans doublon ni écrasement du pseudo par l'auto-soumission.
     this.root.querySelector('[data-replay]').addEventListener('click', () => {
       this.#submitScore();
@@ -46,13 +48,57 @@ export class EndScreen {
       onMenu();
     });
 
-    const form = this.root.querySelector('[data-score-form]');
-    form.addEventListener('submit', (e) => {
+    this.#wireSaveArea();
+    this.#loadLeaderboard();
+  }
+
+  // Zone d'enregistrement : formulaire de pseudo si un wallet est connecté, sinon une invite
+  // à connecter le wallet (obligatoire pour être classé).
+  #saveAreaHtml() {
+    if (isConnected()) {
+      return `
+        <form data-score-form class="score-form">
+          <input type="text" name="name" maxlength="24" placeholder="Your name" autocomplete="off"
+                 value="${escapeHtml(getPlayerName() || shortWallet())}" />
+          <button type="submit">Save my name</button>
+        </form>`;
+    }
+    return `
+      <div class="connect-prompt">
+        <p>Connect your wallet to save this run and enter the leaderboard.</p>
+        <button class="btn-primary" data-connect>Connect Wallet</button>
+      </div>`;
+  }
+
+  #wireSaveArea() {
+    const area = this.root.querySelector('[data-save-area]');
+    area.querySelector('[data-score-form]')?.addEventListener('submit', (e) => {
       e.preventDefault();
       this.#submitScore();
     });
+    area.querySelector('[data-connect]')?.addEventListener('click', (e) =>
+      this.#connectAndSave(e.currentTarget)
+    );
+  }
 
-    this.#loadLeaderboard();
+  // Connecte le wallet depuis l'écran de fin, puis enregistre le run.
+  async #connectAndSave(btn) {
+    const original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Connecting…';
+    try {
+      await connectWallet();
+      const area = this.root.querySelector('[data-save-area]');
+      area.innerHTML = this.#saveAreaHtml(); // devient le formulaire de pseudo
+      this.#wireSaveArea();
+      this.#submitScore();
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = err?.message === 'phantom-missing' ? 'Install Phantom' : 'Connect failed';
+      setTimeout(() => {
+        btn.textContent = original;
+      }, 1800);
+    }
   }
 
   #html() {
@@ -69,11 +115,7 @@ export class EndScreen {
           <span class="end-pct">${this.percent}%</span>
           <div class="end-badges">${badgeChips(earned)}</div>
         </div>
-        <form data-score-form class="score-form">
-          <input type="text" name="name" maxlength="24" placeholder="Your name" autocomplete="off"
-                 value="${escapeHtml(getPlayerName())}" />
-          <button type="submit">Save my name</button>
-        </form>
+        <div class="save-area" data-save-area>${this.#saveAreaHtml()}</div>
         <div class="submit-msg" data-submit-msg></div>
         <h2 class="lb-title">${icon('trophy', { size: 16 })} Furthest survivors</h2>
         <ol class="leaderboard lb-progress" data-leaderboard><li class="lb-loading">Loading…</li></ol>
@@ -86,11 +128,14 @@ export class EndScreen {
 
   async #submitScore() {
     if (this.submitted) return; // un seul enregistrement par run (pas de doublon)
+    // Wallet OBLIGATOIRE pour être classé : sans connexion, on n'enregistre rien (le joueur
+    // peut quitter sans sauvegarder). L'invite de connexion reste affichée dans la zone dédiée.
+    if (!isConnected()) return;
     this.submitted = true;
     const input = this.root.querySelector('input[name="name"]');
     const msg = this.root.querySelector('[data-submit-msg]');
-    const typed = input.value.trim();
-    const name = typed || getPlayerName() || 'Anonymous';
+    const typed = input?.value.trim() || '';
+    const name = typed || getPlayerName() || shortWallet();
     if (typed) setPlayerName(typed);
     try {
       const res = await fetch('/api/scores', {
@@ -104,8 +149,31 @@ export class EndScreen {
           level_reached: this.levelReached,
           player_id: this.playerId,
           won: this.won,
+          run_token: this.runToken,
+          auth_token: getAuthToken(),
         }),
       });
+      if (res.status === 409) {
+        // Run déjà soumis (rejeu) : ce n'est pas une erreur réseau, on ne réessaie pas.
+        msg.textContent = 'ℹ️ Already saved for this run.';
+        this.#loadLeaderboard();
+        return;
+      }
+      if (res.status === 403) {
+        // Run non vérifié (jeton manquant/expiré) : on n'insiste pas (pas de reprise infinie).
+        msg.textContent = '⚠️ Run not verified, score not ranked.';
+        return;
+      }
+      if (res.status === 401) {
+        // Session wallet absente/expirée : on réaffiche l'invite de connexion.
+        this.submitted = false;
+        await disconnectWallet();
+        const area = this.root.querySelector('[data-save-area]');
+        area.innerHTML = this.#saveAreaHtml();
+        this.#wireSaveArea();
+        msg.textContent = '⚠️ Connect your wallet to enter the leaderboard.';
+        return;
+      }
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
       if (data.rank) {

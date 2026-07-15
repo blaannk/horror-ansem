@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { CELL, EYE_HEIGHT, LOS_BOOST, MONSTER_CREEP_SPEED } from '../config.js';
 
-// Ansem — antagoniste affiché en billboard (THREE.Sprite, photo /ansem.png) qui fait
+// Ansem - antagoniste affiché en billboard (THREE.Sprite, photo /ansem.png) qui fait
 // toujours face au joueur et reste lumineux dans le noir.
 // Modes :
 //  - 'none'   : caché, inerte (niveaux sans monstre).
@@ -46,7 +46,7 @@ export class Monster {
   #buildMesh() {
     const g = new THREE.Group();
 
-    // Skin ANSEM (billboard photo) — niveaux crypto.
+    // Skin ANSEM (billboard photo) - niveaux crypto.
     this.ansemGroup = new THREE.Group();
     const tex = new THREE.TextureLoader().load('/monster.png');
     tex.colorSpace = THREE.SRGBColorSpace;
@@ -62,7 +62,7 @@ export class Monster {
     this.ansemGroup.add(this.glow);
     g.add(this.ansemGroup);
 
-    // Skin BONK (créature 3D) — niveau forêt ; caché par défaut.
+    // Skin BONK (créature 3D) - niveau forêt ; caché par défaut.
     this.bonkGroup = this.#buildBonk();
     this.bonkGroup.visible = false;
     g.add(this.bonkGroup);
@@ -71,7 +71,7 @@ export class Monster {
     return g;
   }
 
-  // Créature BONK : le shiba d'Ansem CORROMPU — carcasse QUADRUPÈDE émaciée, poils orange
+  // Créature BONK : le shiba d'Ansem CORROMPU - carcasse QUADRUPÈDE émaciée, poils orange
   // sale, côtes saillantes, tête basse à gueule décrochée + grands crocs, orbites creuses
   // luminescentes, collier + médaillon, sang. Démarche saccadée (animée dans update).
   #buildBonk() {

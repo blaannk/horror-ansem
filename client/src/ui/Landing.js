@@ -2,11 +2,12 @@ import { Chart } from './Chart.js';
 import { makeMazeBackgroundDataURL } from '../game/textures.js';
 import { MenuBackground } from './MenuBackground.js';
 import { CHAPTERS, getPlayerId, getLocalMaxChapter } from '../game/progress.js';
+import { connectWallet, disconnectWallet, isConnected, shortWallet } from '../game/wallet.js';
 import { DEV_SHOW_ALL_LEVELS } from '../config.js';
 import { badgeChips, leaderboardRow } from './EndScreen.js';
 import { icon } from './icons.js';
 
-// Menu : le PREMIER écran doit faire comprendre le principe tout de suite —
+// Menu : le PREMIER écran doit faire comprendre le principe tout de suite -
 // titre + une phrase + charte de santé mentale (live) + leaderboard + PLAY, et le rang du
 // joueur en haut. En scrollant : les explications détaillées, puis les fenêtres de lore/niveaux.
 const POLL_MS = 5000;
@@ -26,17 +27,25 @@ export class Landing {
         <div class="landing-nav-right">
           <div class="rank-chip" data-rank>
             <span class="rank-chip-label">YOUR RANK</span>
-            <span class="rank-chip-val" data-rank-val>—</span>
+            <span class="rank-chip-val" data-rank-val>-</span>
           </div>
           <label class="landing-vol" title="Volume">${icon('volume', { size: 18 })}<input type="range" min="0" max="100" step="1" data-volume /></label>
-          <button class="btn-ghost" data-howto>How it works</button>
+          <button class="btn-ghost btn-wallet" data-wallet>Connect Wallet</button>
         </div>
       </header>
 
       <section class="landing-hero" data-top>
         <h1 class="landing-title">ESCAPE <span class="bonk">ANSEM</span></h1>
+        <div class="ca-wrap">
+          <div class="ca-line">
+            <span class="ca-tag">CA</span>
+            <code class="ca-addr" data-address>loading…</code>
+            <button class="ca-copy" data-copy title="Copy contract address">⧉</button>
+          </div>
+          <span class="ca-msg" data-crypto-msg></span>
+        </div>
         <p class="landing-pitch">
-          Your <span class="bonk">sanity</span> <em>is</em> the shared $BONK market cap — pump it and everyone
+          Your <span class="bonk">sanity</span> <em>is</em> the shared $<span data-ticker>BONK</span> marketcap. Pump it and everyone
           heals, let it bleed and everyone rots. Get out before the market breaks you.
         </p>
 
@@ -44,7 +53,7 @@ export class Landing {
           <section class="win win-monitor">
             <div class="win-head">
               <span class="win-title">Mental Health · Live</span>
-              <span class="win-tag" data-sanity-val>—</span>
+              <span class="win-tag" data-sanity-val>-</span>
             </div>
             <div class="win-body">
               <canvas class="mh-plot" data-chart></canvas>
@@ -64,26 +73,26 @@ export class Landing {
         </div>
 
         <button class="btn-play landing-play" data-play data-level="0">▶ PLAY</button>
-        <div class="landing-scroll-hint">▾ scroll — how it works</div>
+        <div class="landing-scroll-hint">▾ scroll for how it works</div>
       </section>
 
       <section class="landing-how" data-howto-section>
         <span class="concept-kicker">THE ONE RULE</span>
-        <h2 class="concept-title">Your <span class="bonk">mental health</span> IS the market cap.</h2>
+        <h2 class="concept-title">Your <span class="bonk">mental health</span> IS the marketcap.</h2>
         <p class="concept-lead">
-          There is a single, shared <strong>MENTAL HEALTH</strong> bar, wired <strong>live to the $BONK
-          market cap</strong>. The market <em>is</em> the difficulty — everyone plays at the same sanity, right now.
+          There is a single, shared <strong>MENTAL HEALTH</strong> bar, wired <strong>live to the $<span data-ticker>BONK</span>
+          marketcap</strong>. The market <em>is</em> the difficulty: everyone plays at the same sanity, right now.
         </p>
 
         <div class="concept-flow">
           <div class="cf cf-up">
             <span class="cf-icon">${icon('chart-up', { size: 30 })}</span>
-            <b>Market cap UP → sanity rises</b>
+            <b>Marketcap UP → sanity rises</b>
             <span>You move faster and Ansem loses your trail. Escape becomes possible.</span>
           </div>
           <div class="cf cf-down">
             <span class="cf-icon">${icon('chart-down', { size: 30 })}</span>
-            <b>Market cap DOWN → sanity collapses</b>
+            <b>Marketcap DOWN → sanity collapses</b>
             <span>Ansem is <strong>always faster</strong> and hunts you relentlessly through the dark.
             Below the threshold, escape is <strong>nearly impossible</strong>.</span>
           </div>
@@ -92,7 +101,7 @@ export class Landing {
         <div class="howto-grid">
           <section class="howto-block">
             <h2>The nightmare</h2>
-            <p>You wake in a filthy room — buzzing neons, a broken screen stuck on <em>"Buy the dip."</em>
+            <p>You wake in a filthy room, buzzing neons, a broken screen stuck on <em>"Buy the dip."</em>
             Thread the maze while the charts crash, then a door opens and something starts hunting.
             Find the way out before it finds you.</p>
           </section>
@@ -111,9 +120,9 @@ export class Landing {
           <section class="howto-block">
             <h2>Mechanics</h2>
             <ul class="howto-list">
-              <li><strong>Sanity</strong> — the lower it is, the faster the monster runs and the further it senses
+              <li><strong>Sanity</strong>: the lower it is, the faster the monster runs and the further it senses
               you. High sanity even makes <em>you</em> faster.</li>
-              <li><strong>Flashlight (F)</strong> — turn it <strong>off</strong>, stand <strong>still</strong> in a
+              <li><strong>Flashlight (F)</strong>: turn it <strong>off</strong>, stand <strong>still</strong> in a
               <strong>corner</strong>, and it may walk right past you.</li>
               <li><strong>Get caught</strong> and it lunges into a full-screen scream. Then it's over.</li>
             </ul>
@@ -123,19 +132,7 @@ export class Landing {
 
       <section class="landing-lore" data-lore></section>
 
-      <section class="landing-grid">
-        <div class="panel panel-crypto">
-          <h2>$BONK contract</h2>
-          <p class="panel-note">Solana · BONK</p>
-          <div class="crypto-addr">
-            <code data-address>loading…</code>
-            <button class="btn-copy" data-copy title="Copy">⧉</button>
-          </div>
-          <div class="crypto-msg" data-crypto-msg></div>
-        </div>
-      </section>
-
-      <footer class="landing-foot">A BONK / Solana horror project · built with Three.js</footer>
+      <footer class="landing-foot">A <span data-ticker>BONK</span> / Solana horror project · built with Three.js</footer>
     `;
     container.appendChild(this.root);
 
@@ -153,9 +150,8 @@ export class Landing {
 
     for (const b of this.root.querySelectorAll('[data-play]'))
       b.addEventListener('click', () => this.onPlay(Number(b.dataset.level || 0)));
-    this.root.querySelector('[data-howto]').addEventListener('click', () =>
-      this.root.querySelector('[data-howto-section]').scrollIntoView({ behavior: 'smooth' })
-    );
+    this.root.querySelector('[data-wallet]').addEventListener('click', () => this.#toggleWallet());
+    this.#renderWallet();
     this.root.querySelector('[data-copy]').addEventListener('click', () => this.#copyAddress());
 
     const vol = this.root.querySelector('[data-volume]');
@@ -163,7 +159,10 @@ export class Landing {
     vol.addEventListener('input', () => this.onVolume?.(Number(vol.value) / 100));
 
     this.chart = new Chart(this.root.querySelector('[data-chart]'));
-    this._onResize = () => this.chart.draw();
+    this._onResize = () => {
+      this.chart.draw();
+      this.#renderAddress();
+    };
     window.addEventListener('resize', this._onResize);
 
     this.#loadCrypto();
@@ -191,17 +190,38 @@ export class Landing {
   }
 
   async #loadCrypto() {
-    const codeEl = this.root.querySelector('[data-address]');
     try {
       const res = await fetch('/api/crypto/status');
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
       this.address = data.address || 'TBA';
-      codeEl.textContent = this.address;
+      this.#setTicker(data.ticker || data.token);
     } catch {
       this.address = null;
-      codeEl.textContent = 'unavailable (offline)';
     }
+    this.#renderAddress();
+  }
+
+  // Renseigne le ticker (paramétrable via l'env, exposé par /api/crypto/status) partout où il
+  // est affiché sur la landing (« $<ticker> », footer…). Défaut « BONK » avant la réponse.
+  #setTicker(ticker) {
+    const t = String(ticker || 'BONK').trim() || 'BONK';
+    for (const el of this.root.querySelectorAll('[data-ticker]')) el.textContent = t;
+  }
+
+  // Affiche l'adresse ; sur écran étroit, la raccourcit au milieu (CV9dcP…wkd5pump) pour tenir
+  // sur une seule ligne. La valeur COPIÉE reste toujours l'adresse complète (this.address).
+  #renderAddress() {
+    const codeEl = this.root.querySelector('[data-address]');
+    if (!codeEl) return;
+    const a = this.address;
+    if (!a) {
+      codeEl.textContent = 'unavailable (offline)';
+      return;
+    }
+    const narrow = window.innerWidth <= 640;
+    codeEl.textContent =
+      narrow && a.length > 18 ? `${a.slice(0, 6)}…${a.slice(-6)}` : a;
   }
 
   async #copyAddress() {
@@ -214,7 +234,7 @@ export class Landing {
       await navigator.clipboard.writeText(this.address);
       msg.textContent = '✅ Copied!';
     } catch {
-      msg.textContent = 'Copy failed — select manually.';
+      msg.textContent = 'Copy failed, select manually.';
     }
     clearTimeout(this._msgT);
     this._msgT = setTimeout(() => (msg.textContent = ''), 2000);
@@ -254,6 +274,48 @@ export class Landing {
       this.#renderRank(null);
       list.innerHTML = '<li class="lb-empty">Leaderboard unavailable (server offline).</li>';
     }
+  }
+
+  // Bouton wallet : reflète l'état connecté (adresse raccourcie) ou « Connect Wallet ».
+  #renderWallet() {
+    const btn = this.root.querySelector('[data-wallet]');
+    if (!btn) return;
+    if (isConnected()) {
+      btn.classList.add('connected');
+      btn.textContent = shortWallet();
+      btn.title = 'Connected. Click to disconnect.';
+    } else {
+      btn.classList.remove('connected');
+      btn.textContent = 'Connect Wallet';
+      btn.title = 'Sign in with Phantom to link your scores';
+    }
+  }
+
+  async #toggleWallet() {
+    const btn = this.root.querySelector('[data-wallet]');
+    if (isConnected()) {
+      await disconnectWallet();
+      this.#afterWalletChange();
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = 'Connecting…';
+    try {
+      await connectWallet();
+      this.#afterWalletChange();
+    } catch (err) {
+      btn.textContent = err?.message === 'phantom-missing' ? 'Install Phantom' : 'Connect failed';
+      setTimeout(() => this.#renderWallet(), 1800);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // Après (dé)connexion : l'identité change → on rafraîchit le rang et le leaderboard.
+  #afterWalletChange() {
+    this.playerId = getPlayerId();
+    this.#renderWallet();
+    this.#loadLeaderboard();
   }
 
   #renderRank(me) {

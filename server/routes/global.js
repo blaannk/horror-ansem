@@ -7,7 +7,7 @@ import { getGlobalSanity, setGlobalSanity, sanityHistory } from '../db.js';
 
 const router = Router();
 
-// GET /api/global/sanity — valeur courante + historique (points de la courbe).
+// GET /api/global/sanity - valeur courante + historique (points de la courbe).
 router.get('/global/sanity', async (req, res) => {
   const limit = Math.min(Math.max(Number(req.query.limit) || 50, 2), 200);
   try {
@@ -16,27 +16,27 @@ router.get('/global/sanity', async (req, res) => {
     res.json({ sanity: state.sanity, updated_at: state.updated_at, history });
   } catch (err) {
     console.error('[global] échec lecture sanity :', err.message);
-    res.status(500).json({ error: 'erreur base de données' });
+    res.status(500).json({ error: 'database error' });
   }
 });
 
-// POST /api/global/sanity  { sanity: 0..1 } — fixe la valeur globale (driver placeholder).
+// POST /api/global/sanity  { sanity: 0..1 } - fixe la valeur globale (driver placeholder).
 // ÉCRITURE ADMIN uniquement : exige le header `x-admin-token` == process.env.ADMIN_TOKEN.
 // Sans token configuré, l'écriture est refusée (empêche le défaçage public de l'état partagé).
 router.post('/global/sanity', async (req, res) => {
   const token = process.env.ADMIN_TOKEN;
   if (!token || req.get('x-admin-token') !== token) {
-    return res.status(403).json({ error: 'interdit' });
+    return res.status(403).json({ error: 'forbidden' });
   }
   const { sanity } = req.body ?? {};
   const v = Number(sanity);
-  if (!Number.isFinite(v)) return res.status(400).json({ error: 'sanity invalide' });
+  if (!Number.isFinite(v)) return res.status(400).json({ error: 'invalid sanity' });
   try {
     const applied = await setGlobalSanity(v);
     res.status(200).json({ sanity: applied });
   } catch (err) {
     console.error('[global] échec écriture sanity :', err.message);
-    res.status(500).json({ error: 'erreur base de données' });
+    res.status(500).json({ error: 'database error' });
   }
 });
 

@@ -6,9 +6,9 @@ import { makeRadialGlowTexture, makeCeilingTexture, makeMachinePanelTexture } fr
 import { brokenScreen, chartPanel } from './props.js';
 
 // =============================================================
-// Level 3 — LIQUIDATION : la data-center / mine crypto d'Ansem (la « machine » qui pilote la
+// Level 3 - LIQUIDATION : la data-center / mine crypto d'Ansem (la « machine » qui pilote la
 // courbe de santé mentale) qui s'effondre. Enchevêtrement de couloirs exigus où il faut SAUTER
-// les trous, RAMPER dans les conduits et grimper les rebords — poursuivi par Ansem.
+// les trous, RAMPER dans les conduits et grimper les rebords - poursuivi par Ansem.
 // Terrain vertical fourni au Player via `this.terrain`.
 // =============================================================
 const LEDGE_H = 1.3; // hauteur d'un rebord (^)
@@ -563,7 +563,7 @@ export class EndgameLevel extends Level {
       game.monster.position.x = lerp(this._ansemA.x, sp.x, k * 0.4);
       game.monster.position.z = lerp(this._ansemA.z, sp.z, k * 0.4);
     } else if (T < 7.0) {
-      // 5) DEMI-TOUR vif vers le NORD (on s'enfuit) — rotation prolongée (→ 2π ≡ nord).
+      // 5) DEMI-TOUR vif vers le NORD (on s'enfuit) - rotation prolongée (→ 2π ≡ nord).
       yaw = lerp(YS, 2 * Math.PI, smooth(clamp01((T - 6.1) / 0.9)));
     } else {
       // Fin de l'intro → la course commence.
@@ -574,7 +574,7 @@ export class EndgameLevel extends Level {
       if (game.player.controls) game.player.controls.enabled = true;
       game.monster.placeAt(this.maze.spawn); // Ansem repart du fond (tête d'avance)
       game.monster.setMode('chase');
-      game.setObjective('RUN! Reach the button — press E');
+      game.setObjective('RUN! Reach the button, press E');
       return;
     }
     cam.position.set(sp.x, y, sp.z);
@@ -691,7 +691,7 @@ export class EndgameLevel extends Level {
       if (game.player.controls) game.player.controls.enabled = true;
       cam.position.set(base.x, base.y, base.z);
       cam.rotation.set(0, YS, 0);
-      game.setObjective('A portal opened behind you — step through it');
+      game.setObjective('A portal opened behind you, step through it');
       return;
     }
 
@@ -699,7 +699,7 @@ export class EndgameLevel extends Level {
     cam.rotation.set(0, yaw, 0);
   }
 
-  // Animations d'ambiance (portail, LED, gyrophares, écrans, étincelles) — chaque frame.
+  // Animations d'ambiance (portail, LED, gyrophares, écrans, étincelles) - chaque frame.
   #animateDecor(dt) {
     if (this.portal3d) {
       this.portal3d.ring.rotation.z += dt * 1.3;

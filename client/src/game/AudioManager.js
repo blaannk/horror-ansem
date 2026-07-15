@@ -90,7 +90,7 @@ export class AudioManager {
   }
 
   // Joue un échantillon décodé via le master. loop=true → renvoie { src, gain } (pour l'arrêter).
-  // duration>0 coupe la lecture après N s (avec fadeOut optionnel) — utile pour tronquer un
+  // duration>0 coupe la lecture après N s (avec fadeOut optionnel) - utile pour tronquer un
   // fichier (ex. couper la fin parlée du son de réveil).
   playSample(name, { gain = 0.8, loop = false, duration = 0, fadeOut = 0 } = {}) {
     if (!this.ctx || !this.buffers || !this.buffers[name]) return null;
@@ -127,7 +127,7 @@ export class AudioManager {
     if (this.droneGain && this.ctx) this.droneGain.gain.setTargetAtTime(0.04, this.ctx.currentTime, 1);
   }
 
-  // Nom de la piste EN COURS de lecture (null si aucune) — pour décider s'il faut la couper.
+  // Nom de la piste EN COURS de lecture (null si aucune) - pour décider s'il faut la couper.
   currentMusicName() {
     return this._music ? this._musicName : null;
   }

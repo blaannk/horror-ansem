@@ -261,7 +261,7 @@ export function chairProp() {
   return group;
 }
 
-// Matelas taché posé au sol (niveau 1) — le joueur s'y « réveille ».
+// Matelas taché posé au sol (niveau 1) - le joueur s'y « réveille ».
 export function mattressProp() {
   const group = new THREE.Group();
   const fabric = new THREE.MeshStandardMaterial({ color: 0x6a6353, roughness: 1 });
@@ -280,7 +280,7 @@ export function mattressProp() {
   return group;
 }
 
-// Vieux moniteur CRT mort (beige jauni) — se pose renversé sur un bureau/au sol.
+// Vieux moniteur CRT mort (beige jauni) - se pose renversé sur un bureau/au sol.
 export function crtMonitor() {
   const group = new THREE.Group();
   const beige = new THREE.MeshStandardMaterial({ color: 0x8a835f, roughness: 0.85 });

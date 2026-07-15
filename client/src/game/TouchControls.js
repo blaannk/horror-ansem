@@ -55,7 +55,7 @@ export class TouchControls {
     this.crouchBtn = this.root.querySelector('[data-act="crouch"]');
     this.jumpBtn = this.root.querySelector('[data-act="jump"]');
 
-    // Rayon du joystick (en px) — dérivé de la taille rendue de la base.
+    // Rayon du joystick (en px) - dérivé de la taille rendue de la base.
     this.joyRadius = 52;
 
     this.#bind();

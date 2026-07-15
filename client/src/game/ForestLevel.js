@@ -7,7 +7,7 @@ import { campfire, lantern, fireplace, chaletTable, chaletChair, chaletBed, dogB
 import { clawMarks } from './props.js';
 
 // =============================================================
-// Level 2 — NIGHT FOREST: on tombe dans le trou du niveau 1 et on se réveille dans un
+// Level 2 - NIGHT FOREST: on tombe dans le trou du niveau 1 et on se réveille dans un
 // chalet (tableau explicatif + loupiotes). En sortant, BONK surgit derrière avec un cri et
 // nous poursuit dans une forêt très sombre. Seuls les FEUX DE CAMP éclairent : ils forment
 // des zones sûres (BONK fuit tant qu'on y reste, reprend la chasse dès qu'on les quitte).
@@ -71,7 +71,7 @@ export class ForestLevel extends Level {
       if (c >= 1 && r >= 1 && c < COLS - 1 && r < ROWS - 1) grid[r][c] = 0;
     };
 
-    // Chalet (bas-centre) + porte au nord — petit (3×3 cellules) comme une vraie cabane.
+    // Chalet (bas-centre) + porte au nord - petit (3×3 cellules) comme une vraie cabane.
     const chalet = { c0: cx - 1, c1: cx + 1, r0: ROWS - 4, r1: ROWS - 2 };
     for (let r = chalet.r0; r <= chalet.r1; r++) for (let c = chalet.c0; c <= chalet.c1; c++) open(c, r);
     const door = { col: cx, row: chalet.r0 - 1 };
@@ -344,7 +344,7 @@ export class ForestLevel extends Level {
     g.add(photoLight);
     this.track(photoTex, frameMat, photoMat);
 
-    // Scrawled LORE notes all around the walls (English) — BONK is Ansem's dog, he fears light…
+    // Scrawled LORE notes all around the walls (English) - BONK is Ansem's dog, he fears light…
     const addLore = (variant, x, y, z, yaw) => {
       const tex = makeChaletLoreTexture(variant);
       const mat = new THREE.MeshStandardMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.9, roughness: 0.95, transparent: true });
@@ -386,8 +386,8 @@ export class ForestLevel extends Level {
     };
     // Portraits d'Ansem et de BONK : à HAUTEUR DES YEUX sur le mur ouest, symétriques de part et
     // d'autre du tableau central (le mur est est réservé à la grande photo encadrée, centrée).
-    addPortrait('/monster.png', 'ANSEM — he bought the dip', minX + 0.14, 2.4, midZ - 4.5, Math.PI / 2);
-    addPortrait('/bonk-face.png', 'BONK — his dog. now the hunter', minX + 0.14, 2.4, midZ + 4.5, Math.PI / 2);
+    addPortrait('/monster.png', 'ANSEM: he bought the dip', minX + 0.14, 2.4, midZ - 4.5, Math.PI / 2);
+    addPortrait('/bonk-face.png', 'BONK: his dog. now the hunter', minX + 0.14, 2.4, midZ + 4.5, Math.PI / 2);
 
     // MEUBLES : le chalet n'est plus vide. Lit (on s'y réveille) contre le mur ouest,
     // table + chaises au centre-est, décalés du chemin porte↔joueur.
@@ -717,7 +717,7 @@ export class ForestLevel extends Level {
         this.lunging = false;
         this.lungeT = 0;
         // Dès qu'il s'est assez éloigné, il DISPARAÎT dans la forêt (se cache) tant que tu restes
-        // près du feu — au lieu d'attendre juste devant toi.
+        // près du feu - au lieu d'attendre juste devant toi.
         const dm = Math.hypot(game.monster.position.x - cam.x, game.monster.position.z - cam.z);
         if (dm > SAFE_R * 3) game.monster.setVisible(false);
       } else {
@@ -741,7 +741,7 @@ export class ForestLevel extends Level {
           game.monster.rushMult = 1.25; // poursuite soutenue (te rattrape si tu traînes)
         }
       }
-      game.setObjective(safe ? 'Safe by the fire — catch your breath' : 'Run to the next fire!');
+      game.setObjective(safe ? 'Safe by the fire, catch your breath' : 'Run to the next fire!');
     }
 
     // Arrivée à la sortie → niveau suivant (ou victoire si dernier niveau).

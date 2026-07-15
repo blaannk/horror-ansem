@@ -9,7 +9,7 @@ import { EndgameLevel } from './EndgameLevel.js';
 import { VictoryLevel } from './VictoryLevel.js';
 
 // =============================================================
-// Level 1 — WAKE UP: small dirty-yellow room, buzzing neons, broken screen,
+// Level 1 - WAKE UP: small dirty-yellow room, buzzing neons, broken screen,
 // controls + Ansem photos on the walls. Wake-up animation on start.
 // =============================================================
 export class SpawnLevel extends Level {
@@ -167,7 +167,7 @@ export class SpawnLevel extends Level {
 }
 
 // =============================================================
-// Level 1b — TUTORIAL PATH: a single winding corridor (no maze, just a few turns) to get
+// Level 1b - TUTORIAL PATH: a single winding corridor (no maze, just a few turns) to get
 // used to the (inverted) controls. Crashing crypto charts on the walls, a scary echoing
 // voice repeating "You should have sold…".
 // =============================================================
@@ -237,7 +237,7 @@ export class LabyrinthLevel extends Level {
 }
 
 // =============================================================
-// Level 3 — ESCAPE: terror room embedded INSIDE the big map (no loading once
+// Level 3 - ESCAPE: terror room embedded INSIDE the big map (no loading once
 // the door opens). Going RIGHT triggers Ansem's screamer; then "RUN", the LEFT
 // door opens, and the permanent chase begins across the large maze.
 // =============================================================
@@ -450,7 +450,7 @@ export class EscapeLevel extends Level {
 
     if (this.phase === 'countdown') {
       this.countT -= dt;
-      // (Sons de tension « dread » ET « crash » retirés à la demande — transition silencieuse.)
+      // (Sons de tension « dread » ET « crash » retirés à la demande - transition silencieuse.)
       if (this.countT <= 0) {
         game.monster.setMode('chase'); // la vraie poursuite commence (sans texte)
         this.phase = 'chase';

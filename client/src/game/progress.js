@@ -2,7 +2,10 @@
 //
 // LEVELS internes = [Spawn(0), Labyrinth(1), Escape(2), Forest(3), Endgame(4)]
 // regroupés en 3 CHAPITRES visibles. level_reached = levelIndex + 1 (1..5).
-// La dérivation percent/badges est le miroir de server/progress.js — garder les deux alignés.
+// La dérivation percent/badges est le miroir de server/progress.js - garder les deux alignés.
+
+// getPlayerId renvoie l'adresse quand un wallet Phantom est connecté (sinon un id anonyme).
+import { getWallet } from './wallet.js';
 
 export const TOTAL_CHAPTERS = 3;
 
@@ -17,9 +20,9 @@ export const CHAPTERS = [
     tagline: 'buy the dip',
     lore:
       "You come to on a filthy mattress, neons buzzing, a dead screen frozen on “BUY THE DIP.” " +
-      "You don't remember signing anything. The walls remember for you — they're scratched from the inside. " +
+      "You don't remember signing anything. The walls remember for you: they're scratched from the inside. " +
       "Scattered in the maze are the PEPE keys: collect them all to unseal the pit in the floor, then drop " +
-      "through it — before ANSEM finishes waking up too.",
+      "through it, before ANSEM finishes waking up too.",
     badge: { icon: 'chart-down', label: 'Dip Survivor', color: '#e11d2b' },
   },
   {
@@ -28,7 +31,7 @@ export const CHAPTERS = [
     title: 'The Night Forest',
     tagline: 'fire to fire',
     lore:
-      "The pit spat you into the woods. You wake in a cold chalet that still smells of the dog that lived here — " +
+      "The pit spat you into the woods. You wake in a cold chalet that still smells of the dog that lived here: " +
       "BONK, Ansem's pet, before the rot took him. Now he's the size of the dark between the trees. " +
       "Run campfire to campfire; the light is the only thing that slows him.",
     badge: { icon: 'flame', label: 'Woodsman', color: '#39ff88' },
@@ -39,7 +42,7 @@ export const CHAPTERS = [
     title: 'Liquidation',
     tagline: 'the machine eats',
     lore:
-      "Under the forest hums the mine that started all of it — a collapsing data-center bleeding heat and debt. " +
+      "Under the forest hums the mine that started all of it: a collapsing data-center bleeding heat and debt. " +
       "Crawl the ducts, jump the gaps, climb while it folds in on itself. Ansem is in here with you now, " +
       "and there is exactly one way out. Escape and you're finally free of the bag.",
     badge: { icon: 'skull', label: 'Liquidated the Nightmare', color: '#ff2f2f' },
@@ -80,6 +83,10 @@ const NAME_KEY = 'escape-bonk-player-name';
 const MAXCH_KEY = 'escape-bonk-max-chapter';
 
 export function getPlayerId() {
+  // Wallet connecté → identité = adresse vérifiée (les scores sont liés au wallet).
+  const wallet = getWallet();
+  if (wallet) return wallet;
+  // Sinon, identifiant anonyme local (rétro-compatible, sans compte).
   let id = safeGet(ID_KEY);
   if (!id) {
     id = uuid();

@@ -642,7 +642,7 @@ export function makeChaletLoreTexture(variant = 0) {
         'He was Ansem’s dog.',
         'A loyal shiba. Once.',
         '',
-        'Then the rot took Ansem —',
+        'Then the rot took Ansem…',
         'and it took BONK too.',
         '',
         'He still wears his collar,',
@@ -659,7 +659,7 @@ export function makeChaletLoreTexture(variant = 0) {
         'Stay in the glow.',
         'Run from fire to fire.',
         '',
-        'Whatever you do —',
+        'Whatever you do,',
         'never stop in the dark.',
       ],
     },
@@ -673,7 +673,7 @@ export function makeChaletLoreTexture(variant = 0) {
         'His eyes were already there.',
         'Two holes of pale light.',
         '',
-        'You cannot outrun him —',
+        'You cannot outrun him…',
         'you can only reach the fire.',
       ],
     },
@@ -859,7 +859,7 @@ export function makeChaletBoardTexture() {
   const lines = [
     '• Cross the forest to the way out',
     '   (the blue glow, far ahead).',
-    '• It is pitch black — follow the FIRES.',
+    '• It is pitch black, follow the FIRES.',
     '• By a fire you are SAFE:',
     '   BONK cannot reach you there.',
   ];
@@ -877,7 +877,7 @@ export function makeChaletBoardTexture() {
   ctx.font = '34px Georgia, serif';
   const tips = [
     '• Run from fire to fire. Never stop.',
-    '• He stalks the dark, then CHARGES —',
+    '• He stalks the dark, then CHARGES…',
     '   listen to his steps grow louder.',
     '• When he charges, sprint to a fire.',
   ];
@@ -1145,7 +1145,7 @@ export function makeRockTexture() {
   return tex;
 }
 
-// Panneau explicatif du chalet : « rester dans la lumière — BONK craint le feu ».
+// Panneau explicatif du chalet : « rester dans la lumière - BONK craint le feu ».
 export function makeFireHintTexture() {
   const w = 760; // plus large → le titre tient en entier
   const h = 440;

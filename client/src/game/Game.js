@@ -35,11 +35,15 @@ export class Game {
     this.state = 'ready'; // ready | running | paused | transition | over
     this.inputLocked = false;
     this.started = false;
+    this.runToken = null; // jeton anti-triche signé, obtenu au démarrage du run
     this.elapsedMs = 0;
     this.clock = new THREE.Clock();
     this.levelIndex = 0;
     this.level = null;
-    this.sanity = clamp01(config.sanityStart ?? 1);
+    // Santé mentale : pilotée UNIQUEMENT par le serveur (market cap on-chain du token), lue
+    // en continu via /api/global/sanity. Le joueur ne peut plus la modifier. Valeur de départ
+    // à 1 le temps du premier fetch (écrasée dès la 1ʳᵉ synchro).
+    this.sanity = 1;
 
     // Objectifs / mécaniques niveau 1.
     this.keysCollected = 0;
@@ -217,10 +221,6 @@ export class Game {
       <div class="overlay-box">
         <h2>Paused</h2>
         <div class="pause-slider">
-          <label>Mental health: <span data-sanity-val>100%</span></label>
-          <input type="range" min="0" max="100" step="1" value="100" data-sanity-slider />
-        </div>
-        <div class="pause-slider">
           <label>Volume: <span data-volume-val>80%</span></label>
           <input type="range" min="0" max="100" step="1" value="80" data-volume-slider />
         </div>
@@ -234,15 +234,7 @@ export class Game {
     });
     this.pause.querySelector('[data-quit]').addEventListener('click', () => this.#exitToMenu());
 
-    // Curseur de santé mentale (accessible dès la pause / Échap).
-    this.sanitySlider = this.pause.querySelector('[data-sanity-slider]');
-    this.sanityValEl = this.pause.querySelector('[data-sanity-val]');
-    this.sanitySlider.addEventListener('input', () => {
-      this.sanity = clamp01(Number(this.sanitySlider.value) / 100);
-      this.sanityValEl.textContent = `${Math.round(this.sanity * 100)}%`;
-    });
-
-    // Curseur de volume (maître) — persistant via la config.
+    // Curseur de volume (maître) - persistant via la config.
     this.volumeSlider = this.pause.querySelector('[data-volume-slider]');
     this.volumeValEl = this.pause.querySelector('[data-volume-val]');
     this.volumeSlider.value = String(Math.round(clamp01(this.config.volume ?? 0.8) * 100));
@@ -329,18 +321,12 @@ export class Game {
 
 
   #setupSanityControl() {
+    // La santé mentale est calculée CÔTÉ SERVEUR (market cap on-chain du token) et lue en
+    // continu. Le joueur ne peut plus la modifier : exposé en LECTURE SEULE (debug/console).
     window.escapeBonk = {
       getSanity: () => this.sanity,
-      setSanity: (v) => {
-        this.sanity = clamp01(Number(v));
-        return this.sanity;
-      },
     };
-    this._onSanityKey = (e) => {
-      if (e.key === '[') this.sanity = clamp01(this.sanity - 0.05);
-      else if (e.key === ']') this.sanity = clamp01(this.sanity + 0.05);
-    };
-    document.addEventListener('keydown', this._onSanityKey);
+    this.#startSanitySync();
 
     // Lampe torche (F). La boussole n'est plus une touche : elle s'active seule à basse santé.
     this._onAbilityKey = (e) => {
@@ -350,6 +336,39 @@ export class Game {
       else if (k === 'e') this.level?.onInteract?.(this); // interaction (bouton, trophée…)
     };
     document.addEventListener('keydown', this._onAbilityKey);
+  }
+
+  // Synchronise la santé mentale depuis le serveur (source unique : market cap du token).
+  // Premier fetch immédiat, puis toutes les 10 s. Hors-ligne → on garde la dernière valeur.
+  #startSanitySync() {
+    const pull = async () => {
+      try {
+        const res = await fetch('/api/global/sanity?limit=2');
+        if (!res.ok) return;
+        const { sanity } = await res.json();
+        const v = Number(sanity);
+        if (Number.isFinite(v)) this.sanity = clamp01(v);
+      } catch {
+        /* réseau indisponible : on conserve la dernière valeur connue */
+      }
+    };
+    pull();
+    this._sanitySyncT = setInterval(pull, 10_000);
+  }
+
+  // Demande un jeton de run signé au serveur au tout début de la partie (anti-triche
+  // leaderboard). Le chrono (elapsedMs) démarre au même instant → le serveur pourra vérifier
+  // la cohérence temporelle. Hors-ligne : pas de jeton → le run ne sera pas classé.
+  #requestRunToken() {
+    this.runToken = null;
+    fetch('/api/run/start', { method: 'POST' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.token) this.runToken = data.token;
+      })
+      .catch(() => {
+        /* réseau indisponible : run non classé */
+      });
   }
 
   #toggleFlashlight() {
@@ -386,6 +405,7 @@ export class Game {
     if (this.state === 'over') return;
     if (!this.started) {
       this.started = true;
+      this.#requestRunToken();
       this.#startLevel(this.startIndex);
       this.state = 'running';
     } else if (this.state === 'paused') {
@@ -398,7 +418,6 @@ export class Game {
   #pauseTouch() {
     if (this.state !== 'running') return;
     this.state = 'paused';
-    this.#syncSanitySlider();
     this.pause.classList.remove('hidden');
     this.audio.suspend();
     this.#clearSubtitle();
@@ -441,6 +460,7 @@ export class Game {
     if (this.state === 'over') return;
     if (!this.started) {
       this.started = true;
+      this.#requestRunToken();
       this.#startLevel(this.startIndex);
       this.state = 'running';
     } else if (this.state === 'paused') {
@@ -451,18 +471,10 @@ export class Game {
   #onUnlock() {
     if (this.state === 'running') {
       this.state = 'paused';
-      this.#syncSanitySlider();
       this.pause.classList.remove('hidden');
       this.audio.suspend();
       this.#clearSubtitle();
     }
-  }
-
-  #syncSanitySlider() {
-    if (!this.sanitySlider) return;
-    const pct = Math.round(clamp01(this.sanity) * 100);
-    this.sanitySlider.value = String(pct);
-    this.sanityValEl.textContent = `${pct}%`;
   }
 
   #startLevel(i) {
@@ -632,7 +644,7 @@ export class Game {
         playerSprinting: this.player.sprinting,
         monsterMoving: this.monster.moving,
       });
-      // Boussole : angle vers la sortie relatif au regard — disponible tant que la santé
+      // Boussole : angle vers la sortie relatif au regard - disponible tant que la santé
       // mentale reste ≥ COMPASS_SANITY (de 20 % à 100 %) ; elle se perd en dessous.
       let exitAngle = null;
       if (this.level.portal && this.sanity >= COMPASS_SANITY) {
@@ -686,7 +698,7 @@ export class Game {
     if (this.player.controls.isLocked) this.player.controls.unlock();
 
     if (!won) {
-      // CAPTURE : screamer plein écran avant l'écran de fin — visage/son selon le monstre
+      // CAPTURE : screamer plein écran avant l'écran de fin - visage/son selon le monstre
       // (Ansem dans le crypto, BONK dans la forêt).
       const bonk = this.monster.skin === 'bonk';
       const img = this.screamerEl.querySelector('img');
@@ -719,6 +731,7 @@ export class Game {
       timeMs: this.elapsedMs,
       config: this.config,
       levelReached,
+      runToken: this.runToken,
       onReplay: () => this.#exitToMenu(true),
       onMenu: () => this.#exitToMenu(false),
     });
@@ -741,8 +754,8 @@ export class Game {
     clearTimeout(this._endScreamT);
     clearTimeout(this._screamT);
     window.removeEventListener('resize', this._onResize);
-    document.removeEventListener('keydown', this._onSanityKey);
     document.removeEventListener('keydown', this._onAbilityKey);
+    clearInterval(this._sanitySyncT);
     if (window.escapeBonk) delete window.escapeBonk;
     // Tactile : libère l'orientation + le plein écran et retire l'UI tactile.
     if (this.isTouch) {

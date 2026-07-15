@@ -1,4 +1,4 @@
-// Persistance des scores — backend PostgreSQL.
+// Persistance des scores - backend PostgreSQL.
 //
 // La connexion est configurée via la variable d'environnement DATABASE_URL,
 // p. ex. : postgres://user:password@localhost:5432/escape_bonk
@@ -66,7 +66,28 @@ export async function initDb() {
       at     TIMESTAMPTZ NOT NULL DEFAULT now()
     );
     CREATE INDEX IF NOT EXISTS idx_sanity_history_at ON sanity_history(at DESC);
+
+    -- Anti-triche : jetons de run consommés (usage unique, anti-rejeu). Voir runToken.js.
+    CREATE TABLE IF NOT EXISTS used_run_tokens (
+      nonce   TEXT        PRIMARY KEY,
+      used_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
   `);
+}
+
+// Consomme un nonce de run (usage unique). Renvoie true s'il était neuf (donc valide), false
+// s'il a déjà servi (rejeu → à rejeter). Élague les vieux nonces au passage (best-effort).
+export async function consumeRunNonce(nonce) {
+  const { rows } = await pool.query(
+    `INSERT INTO used_run_tokens (nonce) VALUES ($1)
+     ON CONFLICT (nonce) DO NOTHING
+     RETURNING nonce`,
+    [nonce]
+  );
+  pool
+    .query(`DELETE FROM used_run_tokens WHERE used_at < now() - interval '6 hours'`)
+    .catch(() => {});
+  return rows.length > 0;
 }
 // initDb() est désormais AWAITÉ au démarrage par index.js (avant app.listen) → le schéma existe
 // avant de servir la moindre requête. Reste ré-appelable et non bloquant si la base est down.

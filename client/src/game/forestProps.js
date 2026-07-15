@@ -281,7 +281,7 @@ export function fireplace() {
   ember.position.set(0, 0.3, 0.4);
   group.add(ember);
 
-  // Flammes : sprites additifs (comme le feu de camp) — bien plus jolies qu'un cube.
+  // Flammes : sprites additifs (comme le feu de camp) - bien plus jolies qu'un cube.
   const glow = makeRadialGlowTexture();
   const flames = [];
   const cols = [0xff7a1a, 0xffb028, 0xffe070];

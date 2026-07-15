@@ -8,12 +8,12 @@ A narrative first-person 3D horror game in **3 chained levels**, hunted by **Ans
 2. **Short maze**: **crypto charts crash** on the walls while a scary echoing voice repeats
    "**You should have sold…**".
 3. **Escape**: you reach a terror room that is **already part of the big map** (no loading).
-   Two closed doors. Venturing **right** triggers **Ansem's screamer** — then **RUN**, the
+   Two closed doors. Venturing **right** triggers **Ansem's screamer** - then **RUN**, the
    **left door opens**, and Ansem chases you **permanently** across a large maze,
    **speeding up whenever he sees you** (line of sight). Reach the green exit.
 
 A **sanity bar** controls Ansem's speed: the lower it is, the faster he runs. It does not
-change on its own in-game — it is driven from the outside (see below). Voices are
+change on its own in-game - it is driven from the outside (see below). Voices are
 synthesized by the browser (SpeechSynthesis API, no files required).
 
 > First milestone of a crypto-themed project (BONK / Solana). The backend already exposes a
@@ -22,7 +22,7 @@ synthesized by the browser (SpeechSynthesis API, no files required).
 ## Stack
 
 - **Frontend**: Vite + Three.js (3D/FPS rendering), Web Audio API (100% synthesized sound)
-- **Backend**: Node + Express + SQLite (`node:sqlite`, built into Node ≥ 22)
+- **Backend**: Node + Express + PostgreSQL (`pg`), on-chain market cap via `@pump-fun/pump-sdk`
 
 ## Requirements
 
@@ -61,30 +61,38 @@ npm start          # Express serves the build + API on :3000  → http://localho
 | Sprint            | `Shift`                         |
 | Look              | Mouse (click = lock)            |
 | Pause / menu      | `Esc`                           |
-| Sanity ±          | `[` / `]` (testing)             |
 
-## Sanity (external control)
+## Sanity (server-driven from the token market cap)
 
-Sanity is a `[0..1]` value that does not change through gameplay: it is exposed so it can be
-driven from the outside (script, WebSocket, device…). The lower it is, the faster the
-monster: `speed = monsterSpeed × (1 + sanityFear × (1 − sanity))`. On the final map, Ansem
-also gets an extra ×1.8 boost whenever he has line of sight to you.
+Sanity is a `[0..1]` value shared by everyone. It is **not** controllable by the player: it is
+computed **server-side** from the on-chain market cap of the project's pump.fun / PumpSwap
+token, every ~10 s, and mapped `sanity = clamp(marketCapUsd / SANITY_MC_TARGET_USD, 0, 1)`
+(so `0 $ = 0 %` and `SANITY_MC_TARGET_USD` - default `$1,000,000` - `= 100 %`). The lower it
+is, the faster the monster: `speed = monsterSpeed × (1 + sanityFear × (1 − sanity))`. On the
+final map, Ansem also gets an extra ×1.8 boost whenever he has line of sight to you.
+
+The client only **reads** the value (it polls `GET /api/global/sanity` every 10 s); the Solana
+RPC endpoint stays strictly server-side and is never exposed to the browser. Configure it via
+`server/.env` - see `.env.example` (`SOLANA_RPC_URL`, `TOKEN_MINT`, `SANITY_MC_TARGET_USD`,
+`SANITY_POLL_MS`). Without `SOLANA_RPC_URL`/`TOKEN_MINT`, the poller is disabled and sanity
+stays at its last stored value.
 
 ```js
-window.escapeBonk.setSanity(0.2); // 20% → he speeds up a lot
-window.escapeBonk.setSanity(1);   // 100% → base speed
-window.escapeBonk.getSanity();    // read the current value
+window.escapeBonk.getSanity(); // read-only: current sanity in-game (debug)
 ```
 
-Starting value (`sanityStart`) and effect strength (`sanityFear`) are set in the menu. The
-`[` / `]` keys nudge the bar by ±5% for testing.
+The bonding-curve phase and a post-migration PumpSwap pool are both handled automatically.
 
 ## API
 
 | Method  | Route                        | Purpose                                |
 | ------- | ---------------------------- | -------------------------------------- |
-| `POST`  | `/api/scores`                | Submit an escape time                  |
+| `POST`  | `/api/auth/nonce`            | Phantom auth: get a challenge to sign  |
+| `POST`  | `/api/auth/verify`           | Phantom auth: verify sig, get session  |
+| `POST`  | `/api/run/start`             | Start a run → signed anti-cheat token  |
+| `POST`  | `/api/scores`                | Submit a run (run token + optional auth)|
 | `GET`   | `/api/leaderboard`           | Top 10 (optional `?difficulty=`)       |
+| `GET`   | `/api/global/sanity`         | Shared sanity (live) + history points  |
 | `GET`   | `/api/crypto/status`         | Stub BONK integration status           |
 | `POST`  | `/api/crypto/connect-wallet` | Stub wallet connection                 |
 | `GET`   | `/api/health`                | Healthcheck                            |

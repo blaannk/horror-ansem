@@ -94,7 +94,7 @@ export const ENDGAME_LAYOUT = {
   startFacing: 'north',
   // Couloir ÉTROIT (1 de large) SINUEUX : droites plus longues (moins de virages), directions
   // IRRÉGULIÈRES (pas de boustrophedon mécanique, avec un petit crochet), obstacles placés de
-  // façon VARIÉE — certaines droites en portent deux, d'autres aucune, types mélangés, et
+  // façon VARIÉE - certaines droites en portent deux, d'autres aucune, types mélangés, et
   // beaucoup de SAUTS ('_') + quelques GLISSADES ('c'). Connexité S->X vérifiée par BFS
   // (gen-endgame8.mjs). 'A' = spawn Ansem (relâché après une courte grâce, cf. EndgameLevel).
   map: [

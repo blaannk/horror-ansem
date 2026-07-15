@@ -36,7 +36,7 @@ export class Hud {
         <div class="mh-screen">
           <div class="mh-header">
             <span class="mh-title">MENTAL HEALTH</span>
-            <span class="mh-tag" data-mh-val>—</span>
+            <span class="mh-tag" data-mh-val>-</span>
           </div>
           <canvas class="mh-plot" data-hud-chart></canvas>
         </div>
@@ -148,7 +148,7 @@ export class Hud {
 
     const toXY = (col, row) => [ox + (col + 0.5) * s, oy + (row + 0.5) * s];
 
-    // (La sortie n'est PAS indiquée sur la mini-carte — seulement les PEPE et le joueur.)
+    // (La sortie n'est PAS indiquée sur la mini-carte - seulement les PEPE et le joueur.)
 
     // Clés PEPE non ramassées.
     ctx.shadowColor = '#9bff5a';
