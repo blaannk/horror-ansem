@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 
-// Contrôles tactiles (mobile) : joystick de déplacement à gauche, regard au drag à droite,
-// et boutons d'action contextuels (lampe / saut / accroupi selon le chapitre). Remplace le
-// pointer-lock + clavier, indisponibles au tactile. Monté uniquement sur écran tactile.
+// Touch controls (mobile): movement joystick on the left, look via drag on the right,
+// and contextual action buttons (flashlight / jump / crouch depending on the chapter). Replaces
+// pointer-lock + keyboard, unavailable on touch. Mounted only on touch screens.
 
-const LOOK_SENS = 0.0042; // sensibilité du regard (rad par pixel)
+const LOOK_SENS = 0.0042; // look sensitivity (rad per pixel)
 const MAX_PITCH = Math.PI / 2 - 0.05;
 
 export function isTouchDevice() {
@@ -20,7 +20,7 @@ export function isTouchDevice() {
 }
 
 export class TouchControls {
-  // callbacks : { onFlashlight, onPause }
+  // callbacks: { onFlashlight, onPause }
   constructor(container, { camera, player, onFlashlight, onPause }) {
     this.container = container;
     this.camera = camera;
@@ -55,7 +55,7 @@ export class TouchControls {
     this.crouchBtn = this.root.querySelector('[data-act="crouch"]');
     this.jumpBtn = this.root.querySelector('[data-act="jump"]');
 
-    // Rayon du joystick (en px) - dérivé de la taille rendue de la base.
+    // Joystick radius (in px), derived from the rendered size of the base.
     this.joyRadius = 52;
 
     this.#bind();
@@ -71,7 +71,7 @@ export class TouchControls {
     this.root.addEventListener('pointerup', this._onUp);
     this.root.addEventListener('pointercancel', this._onUp);
 
-    // Boutons d'action : consomment l'évènement (pas de regard/joystick déclenché derrière).
+    // Action buttons: consume the event (no look/joystick triggered underneath).
     this.flashBtn.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
       e.preventDefault();
@@ -98,7 +98,7 @@ export class TouchControls {
   }
 
   #onDown(e) {
-    if (e.target.closest('[data-act],[data-pause]')) return; // géré par le bouton
+    if (e.target.closest('[data-act],[data-pause]')) return; // handled by the button
     e.preventDefault();
     const leftZone = e.clientX < window.innerWidth * 0.5;
     if (leftZone && this.joyId === null) {
@@ -135,7 +135,7 @@ export class TouchControls {
         dy = (dy / len) * r;
       }
       this.#moveKnob(dx, dy);
-      // strafe +1 = droite ; forward +1 = avant (haut de l'écran = dy négatif).
+      // strafe +1 = right; forward +1 = forward (top of screen = negative dy).
       this.player.setMove(dx / r, -dy / r);
     } else if (e.pointerId === this.lookId) {
       e.preventDefault();
@@ -166,7 +166,7 @@ export class TouchControls {
     this.knobEl.style.transform = `translate(-50%, -50%) translate(${dx}px, ${dy}px)`;
   }
 
-  // Regard : réplique la mécanique de PointerLockControls (euler YXZ + clamp du pitch).
+  // Look: replicates PointerLockControls' mechanics (YXZ euler + pitch clamp).
   #applyLook(dx, dy) {
     const q = this.camera.quaternion;
     this._euler.setFromQuaternion(q);
@@ -176,14 +176,14 @@ export class TouchControls {
     q.setFromEuler(this._euler);
   }
 
-  // Jeu de boutons selon le chapitre visible : Ch.1 → lampe · Ch.2 → aucun · Ch.3 → saut + accroupi.
+  // Button set depending on the visible chapter: Ch.1 -> flashlight, Ch.2 -> none, Ch.3 -> jump + crouch.
   setLevelButtons(chapter) {
     this.flashBtn.hidden = chapter !== 1;
     this.jumpBtn.hidden = chapter !== 3;
     this.crouchBtn.hidden = chapter !== 3;
-    // La lampe démarre allumée à chaque niveau (miroir de game.flashlightOn).
+    // The flashlight starts on at every level (mirrors game.flashlightOn).
     this.flashBtn.classList.add('active');
-    // Réinitialise l'accroupi entre niveaux.
+    // Reset crouch between levels.
     this.crouched = false;
     this.crouchBtn.classList.remove('active');
     this.player.setCrouch(false);

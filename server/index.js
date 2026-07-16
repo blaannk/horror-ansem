@@ -17,12 +17,12 @@ const PORT = process.env.PORT || 3000;
 const isDev = process.env.NODE_ENV !== 'production';
 
 const app = express();
-// Derrière le proxy d'hébergement (Railway, etc.) : req.ip = vraie IP client (X-Forwarded-For),
-// sinon le rate-limiter par IP verrait tout le monde comme une seule IP (celle du proxy).
+// Behind the hosting proxy (Railway, etc.): req.ip = real client IP (X-Forwarded-For),
+// otherwise the per-IP rate limiter would see everyone as a single IP (the proxy's).
 app.set('trust proxy', 1);
 app.use(express.json());
 
-// CORS permissif en dev (le client Vite tourne sur :5173).
+// Permissive CORS in dev (the Vite client runs on :5173).
 if (isDev) {
   app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
@@ -37,8 +37,8 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true, db: backend, uptime: process.uptime() });
 });
 
-// Limite de débit sur les ÉCRITURES (POST) : bride les floods qui pollueraient le leaderboard /
-// la santé globale et sature­raient le pool PG. Les GET (lecture) ne sont pas bridés ici.
+// Rate limit on WRITES (POST): throttles floods that would pollute the leaderboard /
+// global sanity and saturate the PG pool. GETs (reads) are not throttled here.
 const writeLimiter = rateLimit({ windowMs: 60_000, max: 40 });
 app.use('/api', (req, res, next) => (req.method === 'POST' ? writeLimiter(req, res, next) : next()));
 
@@ -48,7 +48,7 @@ app.use('/api', scoresRouter);
 app.use('/api', cryptoRouter);
 app.use('/api', globalRouter);
 
-// En production, sert le build statique du client.
+// In production, serves the client's static build.
 const clientDist = path.join(__dirname, '..', 'client', 'dist');
 if (fs.existsSync(clientDist)) {
   app.use(express.static(clientDist));
@@ -57,19 +57,19 @@ if (fs.existsSync(clientDist)) {
   });
 }
 
-// Crée le schéma AVANT d'écouter (le schéma existe donc avant la 1ʳᵉ requête). Best-effort :
-// si la base est injoignable, on log et on sert quand même (mode dégradé → 500 sur les routes DB).
+// Creates the schema BEFORE listening (so the schema exists before the 1st request). Best-effort:
+// if the database is unreachable, we log and serve anyway (degraded mode → 500 on DB routes).
 await initDb()
-  .then(() => console.log('[db] schéma prêt'))
-  .catch((err) => console.error('[db] init différée - base injoignable :', err.message));
+  .then(() => console.log('[db] schema ready'))
+  .catch((err) => console.error('[db] init deferred, database unreachable:', err.message));
 
-// Pilote la santé mentale globale depuis le market cap on-chain du token (toutes les ~10 s).
-// Best-effort : si RPC/mint absents ou injoignables, le serveur tourne quand même (voir marketcap.js).
+// Drives the global sanity from the token's on-chain market cap (every ~10s).
+// Best-effort: if RPC/mint are missing or unreachable, the server still runs (see marketcap.js).
 startMarketCapPoller();
 
 app.listen(PORT, () => {
-  console.log(`🐕  Escape BONK - serveur sur http://localhost:${PORT}`);
+  console.log(`🐕  Escape ANSEM - server on http://localhost:${PORT}`);
   if (isDev && !fs.existsSync(clientDist)) {
-    console.log('    (dev) lance le client avec : npm run dev:client  → http://localhost:5173');
+    console.log('    (dev) start the client with: npm run dev:client  → http://localhost:5173');
   }
 });

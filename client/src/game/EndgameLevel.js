@@ -6,37 +6,37 @@ import { makeRadialGlowTexture, makeCeilingTexture, makeMachinePanelTexture } fr
 import { brokenScreen, chartPanel } from './props.js';
 
 // =============================================================
-// Level 3 - LIQUIDATION : la data-center / mine crypto d'Ansem (la « machine » qui pilote la
-// courbe de santé mentale) qui s'effondre. Enchevêtrement de couloirs exigus où il faut SAUTER
-// les trous, RAMPER dans les conduits et grimper les rebords - poursuivi par Ansem.
-// Terrain vertical fourni au Player via `this.terrain`.
+// Level 3 - LIQUIDATION: Ansem's crypto-mine data center (the "machine" driving the
+// mental-health curve) is collapsing. A tangle of cramped corridors where you must JUMP
+// pits, CRAWL through ducts and climb ledges, chased by Ansem.
+// Vertical terrain exposed to the Player via `this.terrain`.
 // =============================================================
-const LEDGE_H = 1.3; // hauteur d'un rebord (^)
-const PIT_FLOOR = -8; // fond d'un trou (_)
-const LOW_CEIL = 1.5; // plafond d'un conduit (c) → il faut ramper (yeux accroupi = 1.0)
-const CEIL_H = 3.6; // plafond normal (bas → tunnels serrés)
-const WALL_INSET = 0.9; // « épaisseur » ajoutée aux murs → couloirs plus étroits (+ liners assortis)
+const LEDGE_H = 1.3; // height of a ledge (^)
+const PIT_FLOOR = -8; // bottom of a pit (_)
+const LOW_CEIL = 1.5; // ceiling of a duct (c) -> must crawl (crouched eye height = 1.0)
+const CEIL_H = 3.6; // normal ceiling (low -> tight tunnels)
+const WALL_INSET = 0.9; // "thickness" added to walls -> narrower corridors (+ matching liners)
 
 export class EndgameLevel extends Level {
   build() {
-    // Grand couloir généré : spawn côté « arrière » (Ansem derrière), longue course vers le
-    // bouton, avec sauts (_) et conduits à ramper (c). Séquence scénarisée (cf. enter/update).
+    // Generated long corridor: spawn at the "back" side (Ansem behind), a long run to the
+    // button, with jumps (_) and crawl ducts (c). Scripted sequence (see enter/update).
     const gen = this.#buildCorridorMap();
     this.map = gen.map;
     this.rows = this.map.length;
     this.cols = this.map[0].length;
     this.buttonCell = gen.button;
     this.maze = new Maze({ id: 'endgame', ceil: 5, startFacing: 'south', map: this.map });
-    this.monsterMode = 'none'; // l'apparition + la poursuite sont pilotées par le niveau
-    this.portal = false; // portail custom (#buildPortal), révélé après la cinématique
-    this.feasibleSanity = 0.5; // pilote la VITESSE d'Ansem (tunable)
-    this.relentless = true; // poursuite implacable : Ansem te repère toujours (couloir sinueux)
+    this.monsterMode = 'none'; // the appearance + chase are driven by the level
+    this.portal = false; // custom portal (#buildPortal), revealed after the cutscene
+    this.feasibleSanity = 0.5; // drives Ansem's SPEED (tunable)
+    this.relentless = true; // relentless chase: Ansem always tracks you (winding corridor)
     this.objective = '';
     this.ambientScreams = ['scream4'];
     this.musicTrack = 'level3Music';
 
     const map = this.map;
-    // --- Terrain (hauteurs / conduits / trous / couloirs étroits) exposé au Player ---
+    // --- Terrain (heights / ducts / pits / narrow corridors) exposed to the Player ---
     this.terrain = {
       wallInset: WALL_INSET,
       floorAt: (c, r) => {
@@ -61,10 +61,10 @@ export class EndgameLevel extends Level {
     this.debris = [];
   }
 
-  // Génère le couloir : voie unique ÉTROITE (1 case), SINUEUSE (montées reliées par des virages
-   // gauche/droite). Obstacles = cases isolées, uniquement sur des segments droits.
+  // Generates the corridor: a single NARROW path (1 cell), WINDING (straight runs linked by
+   // left/right turns). Obstacles = isolated cells, only on straight segments.
   #buildCorridorMap() {
-    // Segments : 'up' = on avance vers la sortie ; 'left'/'right' = virages. ≈ 1m30 de course.
+    // Segments: 'up' = advancing toward the exit; 'left'/'right' = turns. ≈ 1m30 run.
     const segs = [
       ['up', 16], ['left', 4], ['up', 14], ['right', 6], ['up', 12], ['left', 5],
       ['up', 14], ['right', 4], ['up', 12], ['left', 4], ['up', 10], ['right', 5], ['up', 9],
@@ -81,7 +81,7 @@ export class EndgameLevel extends Level {
         raw.push({ c, r });
       }
     }
-    // Recadrage en indices positifs (marge de 1 pour les murs).
+    // Recenter into positive indices (margin of 1 for the walls).
     let minC = Infinity, minR = Infinity, maxC = -Infinity, maxR = -Infinity;
     for (const p of raw) {
       minC = Math.min(minC, p.c); minR = Math.min(minR, p.r);
@@ -94,7 +94,7 @@ export class EndgameLevel extends Level {
     const grid = Array.from({ length: rows }, () => new Array(cols).fill('#'));
     for (const p of path) grid[p.r][p.c] = '.';
 
-    // Un obstacle est posé sur la case DROITE VERTICALE la plus proche (jamais dans un virage).
+    // An obstacle is placed on the nearest VERTICAL STRAIGHT cell (never in a turn).
     const straightV = (i) => i > 0 && i < N - 1 && path[i - 1].c === path[i].c && path[i + 1].c === path[i].c;
     const place = (frac, ch) => {
       let i = Math.round(N * frac);
@@ -105,15 +105,15 @@ export class EndgameLevel extends Level {
       const p = path[i];
       if (grid[p.r][p.c] === '.') grid[p.r][p.c] = ch;
     };
-    // Beaucoup de SAUTS répartis + 1 court conduit ; tout en cases isolées, sur segments droits.
+    // Several spread-out JUMPS + 1 short duct; all on isolated cells, on straight segments.
     for (const f of [0.16, 0.28, 0.52, 0.64, 0.76, 0.88]) place(f, '_');
-    place(0.4, 'c'); // un seul conduit (crawl bref)
-    // Dernier saut juste avant le bouton (sur une case droite proche de la fin).
+    place(0.4, 'c'); // a single duct (brief crawl)
+    // Last jump just before the button (on a straight cell near the end).
     let jf = N - 4;
     for (let d = 0; d < 8 && !straightV(jf); d++) jf = N - 4 - d;
     if (grid[path[jf].r][path[jf].c] === '.') grid[path[jf].r][path[jf].c] = '_';
 
-    // Repères : A/S au départ (bas), bouton + portail à l'arrivée (haut).
+    // Landmarks: A/S at the start (bottom), button + portal at the end (top).
     const A = path[0];
     const S = path[5];
     const BTN = path[N - 2];
@@ -124,7 +124,7 @@ export class EndgameLevel extends Level {
     return { map: grid.map((row) => row.join('')), button: { col: BTN.c, row: BTN.r } };
   }
 
-  // Gros bouton rouge sur socle, posé après le dernier saut.
+  // Big red button on a pedestal, placed after the last jump.
   #buildButton() {
     const w = this.maze.cellToWorld(this.buttonCell.col, this.buttonCell.row);
     const g = new THREE.Group();
@@ -166,15 +166,15 @@ export class EndgameLevel extends Level {
     const pitGlowMat = new THREE.MeshBasicMaterial({ color: 0x330400, transparent: true, opacity: 0.9 });
     this.track(metal, grate, ceilTex, ceilMat, ductMat, voidMat, pitWallMat, pitGlowMat);
 
-    // Comptage.
+    // Counting.
     let walls = 0;
     let opens = 0;
     for (let r = 0; r < this.rows; r++)
       for (let c = 0; c < this.cols; c++) (this.#open(c, r) ? (opens++, opens) : (walls++, walls));
 
-    // --- Murs (InstancedMesh) ---
-    // Gonflés de WALL_INSET : la FACE du mur arrive pile sur la limite de collision (et sous le
-    // liner) → plus de panneau qui flotte devant le mur.
+    // --- Walls (InstancedMesh) ---
+    // Inflated by WALL_INSET: the wall FACE lands exactly on the collision boundary (and under
+    // the liner) -> no more panel floating in front of the wall.
     const wallGeo = new THREE.BoxGeometry(CELL + 2 * WALL_INSET, CEIL_H + 1, CELL + 2 * WALL_INSET);
     const wallMesh = new THREE.InstancedMesh(wallGeo, metal, walls);
     const dummy = new THREE.Object3D();
@@ -192,7 +192,7 @@ export class EndgameLevel extends Level {
     g.add(wallMesh);
     this.track(wallGeo);
 
-    // --- Sols + plafonds + rebords + conduits + trous (par cellule ouverte) ---
+    // --- Floors + ceilings + ledges + ducts + pits (per open cell) ---
     const floorGeo = new THREE.PlaneGeometry(CELL, CELL);
     const ledgeGeo = new THREE.BoxGeometry(CELL, LEDGE_H, CELL);
     this.track(floorGeo, ledgeGeo);
@@ -203,7 +203,7 @@ export class EndgameLevel extends Level {
         const w = m.cellToWorld(c, r);
 
         if (ch === '_') {
-          // Trou : puits sombre (ouverture noire + parois + lueur rouge au fond).
+          // Pit: dark shaft (black opening + walls + red glow at the bottom).
           const opening = new THREE.Mesh(floorGeo, voidMat);
           opening.rotation.x = -Math.PI / 2;
           opening.position.set(w.x, 0.04, w.z);
@@ -216,19 +216,19 @@ export class EndgameLevel extends Level {
           bottom.position.set(w.x, -3.9, w.z);
           g.add(bottom);
         } else if (ch === '^') {
-          // Rebord surélevé : bloc plein jusqu'à LEDGE_H, dessus praticable.
+          // Raised ledge: solid block up to LEDGE_H, walkable on top.
           const block = new THREE.Mesh(ledgeGeo, grate);
           block.position.set(w.x, LEDGE_H / 2, w.z);
           g.add(block);
         } else {
-          // Sol normal.
+          // Normal floor.
           const floor = new THREE.Mesh(floorGeo, grate);
           floor.rotation.x = -Math.PI / 2;
           floor.position.set(w.x, 0.02, w.z);
           g.add(floor);
         }
 
-        // Plafond : bas (conduit) sur 'c', normal sinon.
+        // Ceiling: low (duct) on 'c', normal otherwise.
         const cy = ch === 'c' ? LOW_CEIL : CEIL_H;
         const ceil = new THREE.Mesh(floorGeo, ch === 'c' ? ductMat : ceilMat);
         ceil.rotation.x = Math.PI / 2;
@@ -236,8 +236,8 @@ export class EndgameLevel extends Level {
         g.add(ceil);
       }
 
-    // Linteaux à l'entrée des conduits bas : un BEAM en panneau « machine » (intégré aux murs)
-    // + une fine BANDE d'avertissement lumineuse sur l'arête basse → on voit qu'il faut ramper.
+    // Lintels at the entrance of low ducts: a "machine" panel BEAM (blended into the walls)
+    // + a thin glowing warning STRIP on the low edge -> makes it clear you must crawl.
     const lintelTex = makeMachinePanelTexture();
     const lintelMat = new THREE.MeshStandardMaterial({ map: lintelTex, roughness: 0.7, metalness: 0.5 });
     const stripMat = new THREE.MeshStandardMaterial({ color: 0x1a1206, emissive: 0xffb020, emissiveIntensity: 0.9 });
@@ -249,7 +249,7 @@ export class EndgameLevel extends Level {
         if (this.#cellChar(c, r) !== 'c') continue;
         const w = m.cellToWorld(c, r);
         for (const [dc, dr] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
-          // Linteau seulement à l'entrée depuis un couloir HAUT (pas entre deux conduits).
+          // Lintel only at the entrance from a HIGH corridor (not between two ducts).
           if (!this.#open(c + dc, r + dr) || this.#cellChar(c + dc, r + dr) === 'c') continue;
           const beamGeo = dc !== 0 ? new THREE.BoxGeometry(0.34, lintelH, CELL) : new THREE.BoxGeometry(CELL, lintelH, 0.34);
           const beam = new THREE.Mesh(beamGeo, lintelMat);
@@ -265,8 +265,8 @@ export class EndgameLevel extends Level {
 
   }
 
-  // Habillage des murs : panneaux « machine » rivetés (assortis à l'inset → couloir étroit) +
-  // tuyaux verticaux, instanciés. Donne des couloirs serrés et très détaillés.
+  // Wall dressing: riveted "machine" panels (matched to the inset -> narrow corridor) +
+  // vertical pipes, instanced. Gives tight, highly detailed corridors.
   #buildWallDetail() {
     const m = this.maze;
     const g = this.group;
@@ -275,7 +275,7 @@ export class EndgameLevel extends Level {
     const pipeMat = new THREE.MeshStandardMaterial({ color: 0x3a3e45, roughness: 0.45, metalness: 0.75 });
     this.track(panelMat, pipeMat);
 
-    const faceZ = CELL / 2 - WALL_INSET - 0.03; // liner posé juste devant la face (murs gonflés) → pas de z-fight
+    const faceZ = CELL / 2 - WALL_INSET - 0.03; // liner placed just in front of the face (inflated walls) -> no z-fighting
     const sides = [
       [0, -1, 0],
       [0, 1, Math.PI],
@@ -289,7 +289,7 @@ export class EndgameLevel extends Level {
         if (ch === '#' || ch === '_') continue;
         const w = m.cellToWorld(c, r);
         for (const [dc, dr, yaw] of sides) {
-          if (this.#open(c + dc, r + dr)) continue; // seulement face à un mur
+          if (this.#open(c + dc, r + dr)) continue; // only facing a wall
           faces.push({ x: w.x + dc * faceZ, z: w.z + dr * faceZ, yaw });
         }
       }
@@ -307,7 +307,7 @@ export class EndgameLevel extends Level {
     g.add(liners);
     this.track(panelGeo);
 
-    // Tuyaux verticaux (sur ~1/3 des faces), un peu en avant du liner.
+    // Vertical pipes (on ~1/3 of the faces), slightly in front of the liner.
     const pipeFaces = faces.filter((_, i) => i % 3 === 0);
     const pipeGeo = new THREE.CylinderGeometry(0.12, 0.12, CEIL_H, 8);
     const pipes = new THREE.InstancedMesh(pipeGeo, pipeMat, pipeFaces.length);
@@ -332,7 +332,7 @@ export class EndgameLevel extends Level {
     this.sparks = [];
     this.screens = [];
 
-    // Racks de serveurs mourants (bandes de LED émissives) collés à des murs, face couloir.
+    // Dying server racks (emissive LED strips) attached to walls, facing the corridor.
     const rackMat = new THREE.MeshStandardMaterial({ color: 0x0c0d10, roughness: 0.7, metalness: 0.5 });
     const ledMat = () => new THREE.MeshBasicMaterial({ color: 0x1a3a1a, toneMapped: false });
     this.track(rackMat);
@@ -353,7 +353,7 @@ export class EndgameLevel extends Level {
       g.add(rack);
     }
 
-    // Écrans « LIQUIDATION / SYSTEM FAILURE » + graphiques qui s'effondrent.
+    // "LIQUIDATION / SYSTEM FAILURE" screens + collapsing charts.
     const texts = ['LIQUIDATION', 'SYSTEM FAILURE', 'MARGIN CALL', 'HE NEVER LEFT'];
     const scrSpots = this.#wallDecalSpots(14).filter((s) => !rackSpots.slice(0, 6).includes(s));
     let ti = 0;
@@ -371,7 +371,7 @@ export class EndgameLevel extends Level {
       ti++;
     }
 
-    // Gyrophares rouges d'alerte (PointLights pulsées) répartis dans les couloirs.
+    // Red warning beacon lights (pulsing PointLights) scattered through the corridors.
     const lightCells = this.#openCells().filter((_, i) => i % 9 === 0);
     for (const cell of lightCells.slice(0, 8)) {
       const w = m.cellToWorld(cell.col, cell.row);
@@ -381,7 +381,7 @@ export class EndgameLevel extends Level {
       this.strobes.push({ light, phase: (cell.col + cell.row) * 0.7 });
     }
 
-    // Étincelles (sprites additifs vacillants) au bord de quelques trous.
+    // Sparks (flickering additive sprites) at the edge of a few pits.
     const glow = makeRadialGlowTexture();
     for (let r = 0; r < this.rows; r++)
       for (let c = 0; c < this.cols; c++) {
@@ -396,14 +396,14 @@ export class EndgameLevel extends Level {
         this.track(mat);
       }
 
-    // Faible lumière rouge d'ambiance globale + une lueur près du spawn.
+    // Faint overall red ambient light + a glow near the spawn.
     const amb = new THREE.PointLight(0x551008, 3, 60, 1.2);
     const sp = m.cellToWorld(m.playerSpawn.col, m.playerSpawn.row);
     amb.position.set(sp.x, 4, sp.z);
     g.add(amb);
   }
 
-  // Emplacements muraux (cellule ouverte + un mur voisin) pour coller des décors.
+  // Wall spots (open cell + a neighboring wall) for attaching decor.
   #wallDecalSpots(limit) {
     const spots = [];
     const sides = [
@@ -422,7 +422,7 @@ export class EndgameLevel extends Level {
           }
         }
       }
-    // éclaircit
+    // shuffle
     for (let i = spots.length - 1; i > 0; i--) {
       const j = ((i * 2654435761) >>> 0) % (i + 1);
       [spots[i], spots[j]] = [spots[j], spots[i]];
@@ -432,7 +432,7 @@ export class EndgameLevel extends Level {
 
   #placeWall(obj, spot, y) {
     const { x, z } = this.maze.cellToWorld(spot.col, spot.row);
-    const h = CELL / 2 - WALL_INSET - 0.12; // devant le liner (mur étréci)
+    const h = CELL / 2 - WALL_INSET - 0.12; // in front of the liner (narrowed wall)
     if (spot.side === 'west') {
       obj.position.set(x - h, y, z);
       obj.rotation.y = Math.PI / 2;
@@ -455,14 +455,14 @@ export class EndgameLevel extends Level {
     return cells;
   }
 
-  // Portail de sortie : anneaux tournants + vortex + halo, dressé sur la cellule X, face au
-  // couloir d'arrivée. L'atteindre (update) déclenche la victoire.
+  // Exit portal: spinning rings + vortex + halo, standing on cell X, facing the
+  // arrival corridor. Reaching it (update) triggers victory.
   #buildPortal() {
     const e = this.maze.cellToWorld(this.maze.exit.col, this.maze.exit.row);
     const grp = new THREE.Group();
     grp.position.set(e.x, 1.9, e.z);
-    grp.visible = false; // révélé après la cinématique d'effondrement (dans #updateEnding)
-    // Oriente le portail face à la case d'arrivée (le voisin ouvert de X).
+    grp.visible = false; // revealed after the collapse cutscene (in #updateEnding)
+    // Orients the portal to face the arrival cell (the open neighbor of X).
     for (const [dc, dr, yaw] of [[-1, 0, Math.PI / 2], [1, 0, -Math.PI / 2], [0, -1, 0], [0, 1, Math.PI]])
       if (this.#open(this.maze.exit.col + dc, this.maze.exit.row + dr)) { grp.rotation.y = yaw; break; }
 
@@ -483,7 +483,7 @@ export class EndgameLevel extends Level {
   enter(game) {
     game.monster.setSkin('ansem');
     game.audio.setMonsterVoice('ansem');
-    // Salle des machines qui s'effondre : sombre, brouillard rougeâtre.
+    // Collapsing machine room: dark, reddish fog.
     game.scene.background = new THREE.Color(0x0a0406);
     game.scene.fog = new THREE.FogExp2(0x120608, 0.05);
     game.scene.traverse((o) => {
@@ -491,7 +491,7 @@ export class EndgameLevel extends Level {
       if (o.isHemisphereLight) o.intensity = 0.08;
     });
     game.audio.startMusic('level3Music', 0.46);
-    // Intro scénarisée : on gèle le joueur et on pilote la caméra (réveil → regard → demi-tour).
+    // Scripted intro: the player is frozen and the camera is driven (waking up -> looking around -> turning around).
     game.inputLocked = true;
     if (game.player.controls) game.player.controls.enabled = false;
     game.monster.setMode('none');
@@ -514,16 +514,16 @@ export class EndgameLevel extends Level {
       if (Math.hypot(p.x - cam.x, p.z - cam.z) < CELL * 0.8) game.advance();
       return;
     }
-    // phase 'run' : poursuite + capture gérées par la boucle Game ; rien à faire ici.
+    // phase 'run': chase + capture handled by the Game loop; nothing to do here.
   }
 
-  // Intro (longue, en phases) : RÉVEIL (yeux qui s'ouvrent, on se relève) → REGARDE AUTOUR →
-  // Ansem SURGIT du fond → demi-tour → fuite.
+  // Intro (long, phased): WAKING UP (eyes opening, getting up) -> LOOKING AROUND ->
+  // Ansem BURSTS from the far end -> turns around -> flees.
   #updateIntro(dt, game) {
     const T = (this.phaseT += dt);
     const cam = game.camera;
     const sp = this.maze.cellToWorld(this.maze.playerSpawn.col, this.maze.playerSpawn.row);
-    const YS = this.maze.startYaw; // sud (côté Ansem)
+    const YS = this.maze.startYaw; // south (Ansem's side)
     const EYE = 1.7;
     let yaw = 0;
     let pitch = 0;
@@ -531,7 +531,7 @@ export class EndgameLevel extends Level {
     let y = EYE;
 
     if (T < 2.2) {
-      // 1) RÉVEIL : paupières qui s'ouvrent (fondu) + on se relève du sol, tête qui se redresse.
+      // 1) WAKING UP: eyelids opening (fade) + getting up from the ground, head straightening.
       const k = smooth(clamp01((T - 0.3) / 1.7));
       y = lerp(0.5, EYE, k);
       pitch = lerp(-0.55, 0, k);
@@ -539,22 +539,22 @@ export class EndgameLevel extends Level {
       yaw = 0;
       game.setFade(eyelid(T));
     } else if (T < 3.9) {
-      // 2) REGARDE AUTOUR : balaye lentement vers le sud (l'autre bout du couloir).
+      // 2) LOOKING AROUND: slowly sweeps toward the south (the other end of the corridor).
       game.setFade(0);
       yaw = lerp(0, YS, smooth(clamp01((T - 2.2) / 1.7)));
       pitch = Math.sin((T - 2.2) * 2) * 0.05;
     } else if (T < 4.9) {
-      // 3) Cherche du regard (petits mouvements de tête inquiets) vers le fond sud.
+      // 3) Searching with the eyes (small anxious head movements) toward the south end.
       yaw = YS + Math.sin((T - 3.9) * 4) * 0.13;
       pitch = Math.sin((T - 3.9) * 3) * 0.05;
     } else if (T < 6.1) {
-      // 4) ANSEM SURGIT au fond et amorce sa ruée.
+      // 4) ANSEM BURSTS into view at the far end and starts his rush.
       yaw = YS;
       if (!this._introScared) {
         this._introScared = true;
         game.monster.setVisible(true);
         game.monster.setMode('reveal');
-        game.monster.placeAt(this.maze.spawn); // A (fond sud)
+        game.monster.placeAt(this.maze.spawn); // A (south end)
         this._ansemA = { x: game.monster.position.x, z: game.monster.position.z };
         game.audio.ansemScream();
         game.flash();
@@ -563,16 +563,16 @@ export class EndgameLevel extends Level {
       game.monster.position.x = lerp(this._ansemA.x, sp.x, k * 0.4);
       game.monster.position.z = lerp(this._ansemA.z, sp.z, k * 0.4);
     } else if (T < 7.0) {
-      // 5) DEMI-TOUR vif vers le NORD (on s'enfuit) - rotation prolongée (→ 2π ≡ nord).
+      // 5) Quick TURNAROUND toward the NORTH (fleeing) - extended rotation (-> 2π ≡ north).
       yaw = lerp(YS, 2 * Math.PI, smooth(clamp01((T - 6.1) / 0.9)));
     } else {
-      // Fin de l'intro → la course commence.
+      // End of the intro -> the run begins.
       this.phase = 'run';
       game.setFade(0);
-      cam.rotation.set(0, 0, 0); // face nord (fuite)
+      cam.rotation.set(0, 0, 0); // facing north (fleeing)
       game.inputLocked = false;
       if (game.player.controls) game.player.controls.enabled = true;
-      game.monster.placeAt(this.maze.spawn); // Ansem repart du fond (tête d'avance)
+      game.monster.placeAt(this.maze.spawn); // Ansem starts again from the far end (with a head start)
       game.monster.setMode('chase');
       game.setObjective('RUN! Reach the button, press E');
       return;
@@ -581,7 +581,7 @@ export class EndgameLevel extends Level {
     cam.rotation.set(pitch, yaw, roll);
   }
 
-  // Interaction « E » : sur le bouton (fin de course) → déclenche la cinématique d'effondrement.
+  // "E" interaction: on the button (end of the run) -> triggers the collapse cutscene.
   onInteract(game) {
     if (this.phase !== 'run' || !this.button3d) return;
     const cam = game.camera.position;
@@ -591,14 +591,14 @@ export class EndgameLevel extends Level {
     this.phaseT = 0;
     game.inputLocked = true;
     if (game.player.controls) game.player.controls.enabled = false;
-    game.monster.setMode('reveal'); // fige l'IA + coupe la capture (mode ≠ chase)
+    game.monster.setMode('reveal'); // freezes the AI + disables capture (mode ≠ chase)
     game.monster.setSkin('ansem');
     game.monster.setVisible(true);
-    // Ansem SURGIT juste derrière, sur la dernière ligne droite (vers le sud) : garantit qu'il
-    // soit dans le champ pour la ruée finale, où qu'il fût pendant la course (couloir sinueux).
+    // Ansem BURSTS in right behind, on the final straight (toward the south): guarantees he
+    // is in frame for the final rush, wherever he was during the run (winding corridor).
     const behind = this.maze.cellToWorld(this.buttonCell.col, this.buttonCell.row + 3);
     game.monster.position.set(behind.x, 0, behind.z);
-    this.button3d.domeMat.emissive.setHex(0x39ff88); // bouton enfoncé → vert
+    this.button3d.domeMat.emissive.setHex(0x39ff88); // button pressed -> green
     this._camBase = { x: cam.x, y: cam.y, z: cam.z };
     this._camYaw0 = game.camera.rotation.y;
     this._ansemFrom = { x: behind.x, z: behind.z };
@@ -608,12 +608,12 @@ export class EndgameLevel extends Level {
     game.audio.crash();
   }
 
-  // Génère quelques gravats au-dessus du point d'impact (sur Ansem), animés en chute.
+  // Spawns a few pieces of debris above the impact point (on Ansem), animated falling.
   #spawnDebris(game) {
     const cam = game.camera.position;
     const mat = new THREE.MeshStandardMaterial({ color: 0x2a2a2e, roughness: 1 });
     this.track(mat);
-    // Point d'impact ≈ entre le joueur et Ansem (juste derrière le joueur, côté sud).
+    // Impact point ≈ between the player and Ansem (just behind the player, south side).
     const ix = (cam.x + this._ansemFrom.x) / 2;
     const iz = (cam.z + this._ansemFrom.z) / 2;
     for (let i = 0; i < 9; i++) {
@@ -629,28 +629,28 @@ export class EndgameLevel extends Level {
     }
   }
 
-  // Cinématique de fin : on se retourne, Ansem bondit, le plafond s'effondre sur lui, il tombe ;
-  // puis un portail apparaît dans le dos du joueur.
+  // Ending cutscene: you turn around, Ansem lunges, the ceiling collapses on him, he falls;
+  // then a portal appears behind the player.
   #updateEnding(dt, game) {
     const T = (this.phaseT += dt);
     const cam = game.camera;
-    const YS = this.maze.startYaw; // sud : on regarde Ansem derrière
+    const YS = this.maze.startYaw; // south: looking at Ansem behind
     const base = this._camBase;
 
-    // 1) Se retourner vers Ansem (0–0.6 s).
+    // 1) Turn to face Ansem (0-0.6 s).
     let yaw;
     if (T < 0.6) yaw = lerp(this._camYaw0, YS, smooth(clamp01(T / 0.6)));
     else yaw = YS;
 
-    // 2) Ansem bondit vers le joueur (0.6–1.5 s) : rapprochement + arc de saut.
+    // 2) Ansem lunges toward the player (0.6-1.5 s): closing in + jump arc.
     if (T > 0.6 && T < 1.6) {
       const k = clamp01((T - 0.6) / 1.0);
       game.monster.position.x = lerp(this._ansemFrom.x, cam.position.x, k * 0.7);
       game.monster.position.z = lerp(this._ansemFrom.z, cam.position.z, k * 0.7);
-      game.monster.position.y = Math.sin(k * Math.PI) * 1.6; // saut
+      game.monster.position.y = Math.sin(k * Math.PI) * 1.6; // jump
     }
 
-    // 3) Effondrement à ~1.5 s : flash + gravats qui tombent.
+    // 3) Collapse at ~1.5 s: flash + falling debris.
     if (T >= 1.5 && !this._collapsed) {
       this._collapsed = true;
       game.flash();
@@ -674,17 +674,17 @@ export class EndgameLevel extends Level {
       shake = 0.12 * Math.max(0, 1 - (T - 1.5) / 1.3);
     }
 
-    // 4) Ansem sombre dans le trou avec les gravats (1.8–2.6 s), puis disparaît.
+    // 4) Ansem sinks into the pit with the debris (1.8-2.6 s), then disappears.
     if (T > 1.8) game.monster.position.y = Math.max(-8, 1.2 - (T - 1.8) * 6);
     if (T > 2.4) game.monster.setVisible(false);
 
-    // 5) Révèle le portail (dans le dos = au nord).
+    // 5) Reveals the portal (behind you = to the north).
     if (T > 2.6 && !this._portalShown) {
       this._portalShown = true;
       this.portal3d.grp.visible = true;
     }
 
-    // 6) Rend la main (≥3.3 s) : le joueur fait face au sud (l'effondrement), portail derrière.
+    // 6) Hands control back (≥3.3 s): the player faces south (the collapse), portal behind.
     if (T >= 3.3) {
       this.phase = 'portal';
       game.inputLocked = false;
@@ -699,7 +699,7 @@ export class EndgameLevel extends Level {
     cam.rotation.set(0, yaw, 0);
   }
 
-  // Animations d'ambiance (portail, LED, gyrophares, écrans, étincelles) - chaque frame.
+  // Ambient animations (portal, LEDs, beacon lights, screens, sparks) - every frame.
   #animateDecor(dt) {
     if (this.portal3d) {
       this.portal3d.ring.rotation.z += dt * 1.3;
@@ -736,11 +736,11 @@ function lerp(a, b, k) {
 function smooth(k) {
   return k * k * (3 - 2 * k);
 }
-// Paupières au réveil : noir → entrouvre → clignement → ouvert (fondu). Renvoie l'alpha du fondu.
+// Eyelids waking up: black -> half-open -> blink -> open (fade). Returns the fade alpha.
 function eyelid(T) {
-  if (T < 0.4) return 1; // yeux fermés
-  if (T < 0.7) return lerp(1, 0.15, (T - 0.4) / 0.3); // s'ouvrent
-  if (T < 0.95) return lerp(0.15, 0.7, (T - 0.7) / 0.25); // clignement
-  if (T < 1.8) return Math.max(0, lerp(0.7, 0, (T - 0.95) / 0.85)); // ouverture finale
+  if (T < 0.4) return 1; // eyes closed
+  if (T < 0.7) return lerp(1, 0.15, (T - 0.4) / 0.3); // opening
+  if (T < 0.95) return lerp(0.15, 0.7, (T - 0.7) / 0.25); // blink
+  if (T < 1.8) return Math.max(0, lerp(0.7, 0, (T - 0.95) / 0.85)); // final opening
   return 0;
 }

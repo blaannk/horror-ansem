@@ -2,13 +2,13 @@ import * as THREE from 'three';
 import { Maze } from '../game/Maze.js';
 import { MazeRenderer } from '../game/MazeRenderer.js';
 
-// Fond de menu : survol 3D lent d'un vrai labyrinthe (mêmes murs « crypto » que le jeu),
-// éclairé par une torche qui suit la caméra, dans un brouillard épais. Par-dessus : des
-// « bugs d'écran » (glitch RGB/secousse) et de brefs FLASH du visage d'Ansem.
+// Menu background: a slow 3D flyover of a real maze (same "crypto" walls as the game),
+// lit by a torch that follows the camera, in a thick fog. On top: "screen
+// glitches" (RGB glitch/shake) and brief FLASHES of Ansem's face.
 export class MenuBackground {
   constructor(host) {
     this.host = host; // .landing-fx
-    this.root = host.parentElement; // .landing (pour les overlays)
+    this.root = host.parentElement; // .landing (for the overlays)
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -17,18 +17,18 @@ export class MenuBackground {
     host.appendChild(this.renderer.domElement);
 
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.FogExp2(0x0a0710, 0.03); // brouillard allégé → fond plus visible
+    this.scene.fog = new THREE.FogExp2(0x0a0710, 0.03); // lightened fog: background more visible
     this.camera = new THREE.PerspectiveCamera(74, window.innerWidth / window.innerHeight, 0.1, 400);
 
-    this.scene.add(new THREE.AmbientLight(0x3a2e42, 0.85)); // ambiante relevée
-    this.torch = new THREE.PointLight(0xff8248, 5, 64, 1.5); // torche plus forte & plus loin
+    this.scene.add(new THREE.AmbientLight(0x3a2e42, 0.85)); // raised ambient light
+    this.torch = new THREE.PointLight(0xff8248, 5, 64, 1.5); // stronger & farther-reaching torch
     this.scene.add(this.torch);
 
     this.maze = new Maze({ generate: { cols: 15, rows: 15, ceil: 5, withMonster: false } });
     this.mr = new MazeRenderer(this.maze, { portal: false });
     this.scene.add(this.mr.group);
 
-    // Trajet = chemin le plus long du labyrinthe (fly-through en va-et-vient).
+    // Path = longest route through the maze (back-and-forth fly-through).
     const path = this.maze.findPath(this.maze.playerSpawn, this.maze.exit);
     const cells = [this.maze.playerSpawn, ...path];
     this.pts = cells.map((c) => {
@@ -81,7 +81,7 @@ export class MenuBackground {
     pos.y = 1.7 + Math.sin(this.bob * 1.8) * 0.06;
     this.camera.position.copy(pos);
     this.torch.position.set(pos.x, pos.y + 0.4, pos.z);
-    // Regard vers l'avant (dans le sens du déplacement), lissé.
+    // Look ahead (in the direction of travel), smoothed.
     const target = this.#posAt(this.d + this.dir * 5);
     this.look.lerp(target, 0.06);
     this.camera.lookAt(this.look);
@@ -101,7 +101,7 @@ export class MenuBackground {
   }
 
   #scheduleGlitch() {
-    // Plus FRÉQUENT qu'avant (toutes les ~2 à 5,5 s).
+    // More FREQUENT than before (every ~2 to 5.5 s).
     const delay = 2000 + Math.random() * 3500;
     this._glitchT = setTimeout(() => {
       this.#glitch();
@@ -109,20 +109,20 @@ export class MenuBackground {
     }, delay);
   }
 
-  // Bug d'écran + flashs du visage d'Ansem, de DURÉE VARIABLE (parfois de brefs clignotements,
-  // parfois il s'attarde plus longtemps à l'écran).
+  // Screen glitch + flashes of Ansem's face, with VARIABLE DURATION (sometimes brief flickers,
+  // sometimes it lingers on screen longer).
   #glitch() {
     this.root.classList.add('menu-glitching');
     clearTimeout(this._glitchOffT);
     this._glitchOffT = setTimeout(() => this.root.classList.remove('menu-glitching'), 220 + Math.random() * 320);
-    // 1 fois sur 3 : apparition SOUTENUE (il reste ~0,6–1,4 s) ; sinon clignotements courts.
+    // 1 in 3 times: SUSTAINED appearance (stays ~0.6-1.4 s); otherwise short flickers.
     if (Math.random() < 0.34) {
       this.scare.style.opacity = String(0.72 + Math.random() * 0.26);
       clearTimeout(this._flashT);
       this._flashT = setTimeout(() => (this.scare.style.opacity = '0'), 600 + Math.random() * 800);
       return;
     }
-    const pulses = 4 + ((Math.random() * 10) | 0); // 4 à 13 clignotements → temps à l'écran varié
+    const pulses = 4 + ((Math.random() * 10) | 0); // 4 to 13 flickers: varied screen time
     let n = 0;
     const pulse = () => {
       this.scare.style.opacity = n % 2 ? '0' : String(0.65 + Math.random() * 0.3);

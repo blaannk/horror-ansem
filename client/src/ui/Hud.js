@@ -1,6 +1,6 @@
-// Surcouche d'interface pendant le jeu : chrono, objectif du niveau, barre de santé
-// mentale, jauge de stamina, réticule, vignette rouge qui pulse selon la proximité, et le
-// moniteur de santé mentale (courbe live) épinglé en bas à droite.
+// In-game UI overlay: timer, level objective, mental-health bar,
+// stamina gauge, crosshair, red vignette that pulses with proximity, and the
+// mental-health monitor (live chart) pinned bottom-right.
 
 import { Chart } from './Chart.js';
 
@@ -56,7 +56,7 @@ export class Hud {
     this.minimapCanvas = this.root.querySelector('[data-minimap-canvas]');
     this.minimapCtx = this.minimapCanvas.getContext('2d');
 
-    // Moniteur de santé mentale : courbe live échantillonnée ~1×/s (fenêtre glissante 60 s).
+    // Mental-health monitor: live chart sampled ~1x/s (60 s sliding window).
     this.mhChart = new Chart(this.root.querySelector('[data-hud-chart]'), { compact: true });
     this.mhValEl = this.root.querySelector('[data-mh-val]');
     this.mhBuf = [];
@@ -67,7 +67,7 @@ export class Hud {
     this.objectiveEl.textContent = text || '';
   }
 
-  // Compteur de clés PEPE ; masqué quand le niveau n'en comporte pas (total = 0).
+  // PEPE key counter; hidden when the level has none (total = 0).
   setKeys(collected, total) {
     if (!total) {
       this.keysEl.hidden = true;
@@ -86,7 +86,7 @@ export class Hud {
   update({ elapsedMs, sanity, proximity, exitAngle, minimap }) {
     this.timerEl.textContent = `${(elapsedMs / 1000).toFixed(1)}s`;
 
-    // Boussole : pointe vers la sortie (relativement à la direction du regard).
+    // Compass: points to the exit (relative to the look direction).
     if (typeof exitAngle === 'number') {
       this.compass.classList.add('on');
       this.compassArrow.style.transform = `rotate(${((exitAngle * 180) / Math.PI).toFixed(1)}deg)`;
@@ -94,10 +94,10 @@ export class Hud {
       this.compass.classList.remove('on');
     }
 
-    // Santé mentale = SEUL indicateur (moniteur bas-droite). La barre a été retirée.
+    // Mental health = ONLY indicator (bottom-right monitor). The bar was removed.
     if (typeof sanity === 'number') {
       const s = Math.max(0, Math.min(1, sanity));
-      // Échantillonne la courbe une fois par seconde de jeu (fenêtre glissante de 60 pts).
+      // Sample the chart once per second of gameplay (60-point sliding window).
       const t = Math.floor(elapsedMs / 1000);
       if (t !== this.mhLastT) {
         this.mhLastT = t;
@@ -116,8 +116,8 @@ export class Hud {
     this.vignette.style.opacity = (p * pulse).toFixed(3);
   }
 
-  // Mini-carte des clés PEPE : n'apparaît qu'à basse santé mentale (≤ 30 %). Vue de dessus
-  // du labyrinthe avec les PEPE non ramassées, la sortie et la flèche du joueur.
+  // PEPE key minimap: only appears at low mental health (<= 30%). Top-down view
+  // of the maze with the uncollected PEPEs, the exit, and the player's arrow.
   renderMinimap(mm) {
     if (!mm) {
       if (!this.minimapEl.hidden) this.minimapEl.hidden = true;
@@ -137,7 +137,7 @@ export class Hud {
     ctx.fillStyle = '#05070a';
     ctx.fillRect(0, 0, W, H);
 
-    // Cellules praticables (les murs restent sombres).
+    // Walkable cells (walls stay dark).
     ctx.fillStyle = 'rgba(120,150,140,0.16)';
     for (let r = 0; r < maze.rows; r++) {
       for (let c = 0; c < maze.cols; c++) {
@@ -148,9 +148,9 @@ export class Hud {
 
     const toXY = (col, row) => [ox + (col + 0.5) * s, oy + (row + 0.5) * s];
 
-    // (La sortie n'est PAS indiquée sur la mini-carte - seulement les PEPE et le joueur.)
+    // (The exit is NOT shown on the minimap - only the PEPEs and the player.)
 
-    // Clés PEPE non ramassées.
+    // Uncollected PEPE keys.
     ctx.shadowColor = '#9bff5a';
     ctx.shadowBlur = 7;
     ctx.fillStyle = '#9bff5a';
@@ -162,7 +162,7 @@ export class Hud {
     }
     ctx.shadowBlur = 0;
 
-    // Joueur (flèche orientée selon le regard).
+    // Player (arrow oriented per look direction).
     const [plx, ply] = toXY(mm.player.col, mm.player.row);
     ctx.save();
     ctx.translate(plx, ply);

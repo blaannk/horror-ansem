@@ -7,9 +7,9 @@ import { DEV_SHOW_ALL_LEVELS } from '../config.js';
 import { badgeChips, leaderboardRow } from './EndScreen.js';
 import { icon } from './icons.js';
 
-// Menu : le PREMIER écran doit faire comprendre le principe tout de suite -
-// titre + une phrase + charte de santé mentale (live) + leaderboard + PLAY, et le rang du
-// joueur en haut. En scrollant : les explications détaillées, puis les fenêtres de lore/niveaux.
+// Menu: the FIRST screen must make the concept clear right away -
+// title + one sentence + live mental-health chart + leaderboard + PLAY, and the player's
+// rank at the top. Scrolling down: detailed explanations, then the lore/level windows.
 const POLL_MS = 5000;
 
 export class Landing {
@@ -136,10 +136,10 @@ export class Landing {
     `;
     container.appendChild(this.root);
 
-    // Fenêtres de lore (gated) : injectées avant de câbler les boutons [data-play].
+    // Lore windows (gated): injected before wiring up the [data-play] buttons.
     this.root.querySelector('[data-lore]').innerHTML = this.#loreWindowsHtml();
 
-    // Fond : labyrinthe 3D animé + glitches (repli sur une image statique si WebGL échoue).
+    // Background: animated 3D maze + glitches (falls back to a static image if WebGL fails).
     const fx = this.root.querySelector('.landing-fx');
     try {
       this.bg = new MenuBackground(fx);
@@ -171,8 +171,8 @@ export class Landing {
     this._timer = setInterval(() => this.#pollSanity(), POLL_MS);
   }
 
-  // Fenêtres de lore par chapitre. Gating : au début seule la 1ère (sans dire « niveau 1 ») ;
-  // les suivantes apparaissent quand le joueur a atteint ce chapitre. Flag dev = les 3 visibles.
+  // Lore windows per chapter. Gating: at first only the 1st is shown (without saying "level 1");
+  // the next ones appear once the player has reached that chapter. Dev flag = all 3 visible.
   #loreWindowsHtml() {
     const maxCh = getLocalMaxChapter();
     return CHAPTERS.filter((c) => DEV_SHOW_ALL_LEVELS || c.n <= maxCh)
@@ -202,15 +202,15 @@ export class Landing {
     this.#renderAddress();
   }
 
-  // Renseigne le ticker (paramétrable via l'env, exposé par /api/crypto/status) partout où il
-  // est affiché sur la landing (« $<ticker> », footer…). Défaut « BONK » avant la réponse.
+  // Sets the ticker (configurable via the env, exposed by /api/crypto/status) everywhere it
+  // is shown on the landing page ("$<ticker>", footer...). Defaults to "BONK" before the response.
   #setTicker(ticker) {
     const t = String(ticker || 'BONK').trim() || 'BONK';
     for (const el of this.root.querySelectorAll('[data-ticker]')) el.textContent = t;
   }
 
-  // Affiche l'adresse ; sur écran étroit, la raccourcit au milieu (CV9dcP…wkd5pump) pour tenir
-  // sur une seule ligne. La valeur COPIÉE reste toujours l'adresse complète (this.address).
+  // Displays the address; on narrow screens, shortens it in the middle (CV9dcP...wkd5pump) to fit
+  // on a single line. The COPIED value is always the full address (this.address).
   #renderAddress() {
     const codeEl = this.root.querySelector('[data-address]');
     if (!codeEl) return;
@@ -241,7 +241,7 @@ export class Landing {
   }
 
   async #pollSanity() {
-    if (document.hidden) return; // onglet en arrière-plan → on ne sollicite pas le serveur
+    if (document.hidden) return; // tab in background: don't hit the server
     const valEl = this.root.querySelector('[data-sanity-val]');
     try {
       const res = await fetch('/api/global/sanity');
@@ -276,7 +276,7 @@ export class Landing {
     }
   }
 
-  // Bouton wallet : reflète l'état connecté (adresse raccourcie) ou « Connect Wallet ».
+  // Wallet button: reflects the connected state (shortened address) or "Connect Wallet".
   #renderWallet() {
     const btn = this.root.querySelector('[data-wallet]');
     if (!btn) return;
@@ -311,7 +311,7 @@ export class Landing {
     }
   }
 
-  // Après (dé)connexion : l'identité change → on rafraîchit le rang et le leaderboard.
+  // After (dis)connecting: the identity changes, so refresh the rank and the leaderboard.
   #afterWalletChange() {
     this.playerId = getPlayerId();
     this.#renderWallet();

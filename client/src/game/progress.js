@@ -1,21 +1,21 @@
-// Modèle d'avancement partagé (menu, écran de fin, gating des fenêtres de lore).
+// Shared progress model (menu, end screen, lore window gating).
 //
-// LEVELS internes = [Spawn(0), Labyrinth(1), Escape(2), Forest(3), Endgame(4)]
-// regroupés en 3 CHAPITRES visibles. level_reached = levelIndex + 1 (1..5).
-// La dérivation percent/badges est le miroir de server/progress.js - garder les deux alignés.
+// Internal LEVELS = [Spawn(0), Labyrinth(1), Escape(2), Forest(3), Endgame(4)]
+// grouped into 3 visible CHAPTERS. level_reached = levelIndex + 1 (1..5).
+// The percent/badges derivation mirrors server/progress.js - keep both in sync.
 
-// getPlayerId renvoie l'adresse quand un wallet Phantom est connecté (sinon un id anonyme).
+// getPlayerId returns the address when a Phantom wallet is connected (otherwise an anonymous id).
 import { getWallet } from './wallet.js';
 
 export const TOTAL_CHAPTERS = 3;
 
-// Métadonnées par chapitre (source des fenêtres de lore + libellés de badges).
-// `levelIndex` = point d'entrée dans LEVELS pour jouer ce chapitre (passé à Game).
+// Per-chapter metadata (source of lore windows + badge labels).
+// `levelIndex` = entry point into LEVELS to play this chapter (passed to Game).
 export const CHAPTERS = [
   {
     n: 1,
     levelIndex: 0,
-    // Volontairement mystérieux : le tout premier chapitre ne s'annonce pas comme « niveau 1 ».
+    // Deliberately mysterious: the very first chapter doesn't announce itself as "level 1".
     title: 'The Yellow Room',
     tagline: 'buy the dip',
     lore:
@@ -49,7 +49,7 @@ export const CHAPTERS = [
   },
 ];
 
-// Chapitre le plus loin ATTEINT (position du joueur).
+// Furthest chapter REACHED (player's position).
 export function chapterReached(levelReached) {
   const lr = clampLevel(levelReached);
   if (lr <= 3) return 1;
@@ -57,18 +57,18 @@ export function chapterReached(levelReached) {
   return 3;
 }
 
-// Avancement en % (33 / 66 / 100).
+// Progress in % (33 / 66 / 100).
 export function percentOf(levelReached) {
   return Math.round((chapterReached(levelReached) / TOTAL_CHAPTERS) * 100);
 }
 
-// Chapitres FRANCHIS -> numéros de badges gagnés.
+// Chapters CLEARED -> numbers of badges earned.
 export function badgesOf(levelReached, won) {
   const lr = clampLevel(levelReached);
   const out = [];
-  if (lr >= 4) out.push(1); // atteint la forêt = a fini le chapitre 1
-  if (lr >= 5) out.push(2); // atteint la liquidation = a fini le chapitre 2
-  if (won && lr >= 5) out.push(3); // victoire finale
+  if (lr >= 4) out.push(1); // reached the forest = finished chapter 1
+  if (lr >= 5) out.push(2); // reached the liquidation = finished chapter 2
+  if (won && lr >= 5) out.push(3); // final victory
   return out;
 }
 
@@ -76,17 +76,17 @@ function clampLevel(lr) {
   return Math.max(1, Math.min(5, Math.round(Number(lr) || 1)));
 }
 
-// ---------- Identité joueur locale (pas de compte : UUID + pseudo dans localStorage) ----------
+// ---------- Local player identity (no account: UUID + nickname in localStorage) ----------
 
-const ID_KEY = 'escape-bonk-player-id';
-const NAME_KEY = 'escape-bonk-player-name';
-const MAXCH_KEY = 'escape-bonk-max-chapter';
+const ID_KEY = 'escape-ansem-player-id';
+const NAME_KEY = 'escape-ansem-player-name';
+const MAXCH_KEY = 'escape-ansem-max-chapter';
 
 export function getPlayerId() {
-  // Wallet connecté → identité = adresse vérifiée (les scores sont liés au wallet).
+  // Wallet connected: identity = verified address (scores are tied to the wallet).
   const wallet = getWallet();
   if (wallet) return wallet;
-  // Sinon, identifiant anonyme local (rétro-compatible, sans compte).
+  // Otherwise, local anonymous identifier (backward-compatible, no account).
   let id = safeGet(ID_KEY);
   if (!id) {
     id = uuid();
@@ -105,7 +105,7 @@ export function setPlayerName(name) {
   return clean;
 }
 
-// Chapitre le plus loin atteint sur CET appareil (gating des fenêtres de lore).
+// Furthest chapter reached on THIS device (lore window gating).
 export function getLocalMaxChapter() {
   const n = Number(safeGet(MAXCH_KEY));
   return Number.isFinite(n) ? Math.max(1, Math.min(TOTAL_CHAPTERS, n)) : 1;

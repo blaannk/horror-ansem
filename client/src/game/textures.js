@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 
-// Génère, sur un <canvas>, un papier peint « crypto » vintage : symboles ₿/Ξ/$,
-// mentions HODL/BONK, mini-graphiques en chandeliers... puis on le DÉLAVE
-// (lavis translucide, taches) et on le DÉCHIRE (trous sombres à bords arrachés,
-// rayures, vignettage). Renvoie une CanvasTexture prête pour un matériau Three.js.
+// Generates, on a <canvas>, a vintage "crypto" wallpaper: ₿/Ξ/$ symbols,
+// HODL/BONK mentions, mini candlestick charts... then WASHES IT OUT
+// (translucent wash, stains) and TEARS IT (dark holes with ragged edges,
+// scratches, vignetting). Returns a CanvasTexture ready for a Three.js material.
 
 export function makeCryptoWallTexture() {
   const size = 1024;
@@ -11,17 +11,17 @@ export function makeCryptoWallTexture() {
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
 
-  // --- Fond papier peint délavé ---
+  // --- Faded wallpaper background ---
   ctx.fillStyle = '#4a4636';
   ctx.fillRect(0, 0, size, size);
 
-  // Bandes verticales façon lés de papier peint.
+  // Vertical stripes like wallpaper strips.
   for (let x = 0; x < size; x += 64) {
     ctx.fillStyle = (x / 64) % 2 ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.05)';
     ctx.fillRect(x, 0, 64, size);
   }
 
-  // --- Motifs crypto en grille ---
+  // --- Crypto motifs in a grid ---
   const motifs = ['₿', 'Ξ', '$', '%', 'HODL', 'BONK'];
   const grid = 6;
   const cellp = size / grid;
@@ -45,7 +45,7 @@ export function makeCryptoWallTexture() {
     }
   }
 
-  // --- Mini graphiques en chandeliers ---
+  // --- Mini candlestick charts ---
   const chart = (x, y, w, h) => {
     ctx.save();
     ctx.globalAlpha = 0.4;
@@ -70,7 +70,7 @@ export function makeCryptoWallTexture() {
   chart(size * 0.08, size * 0.72, size * 0.32, size * 0.18);
   chart(size * 0.56, size * 0.12, size * 0.32, size * 0.18);
 
-  // --- DÉLAVÉ : lavis translucide + taches d'humidité ---
+  // --- WASHED OUT: translucent wash + damp stains ---
   ctx.globalAlpha = 0.32;
   ctx.fillStyle = '#3b3a30';
   ctx.fillRect(0, 0, size, size);
@@ -88,7 +88,7 @@ export function makeCryptoWallTexture() {
     ctx.fillRect(x - r, y - r, 2 * r, 2 * r);
   }
 
-  // --- DÉCHIRÉ : trous au mur, bords de papier arrachés ---
+  // --- TORN: holes in the wall, ragged paper edges ---
   for (let i = 0; i < 6; i++) {
     const x = Math.random() * size;
     const y = Math.random() * size;
@@ -103,14 +103,14 @@ export function makeCryptoWallTexture() {
       p === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
     }
     ctx.closePath();
-    ctx.fillStyle = '#0c0b09'; // mur sombre dessous
+    ctx.fillStyle = '#0c0b09'; // dark wall underneath
     ctx.fill();
-    ctx.strokeStyle = 'rgba(205,193,150,0.55)'; // bord de papier clair arraché
+    ctx.strokeStyle = 'rgba(205,193,150,0.55)'; // light torn paper edge
     ctx.lineWidth = 3;
     ctx.stroke();
   }
 
-  // --- Rayures ---
+  // --- Scratches ---
   for (let i = 0; i < 45; i++) {
     ctx.strokeStyle = `rgba(0,0,0,${Math.random() * 0.15})`;
     ctx.lineWidth = Math.random() * 2;
@@ -122,7 +122,7 @@ export function makeCryptoWallTexture() {
     ctx.stroke();
   }
 
-  // --- Vignettage (assombrit les bords pour casser le raccord) ---
+  // --- Vignette (darkens the edges to break up the tiling seam) ---
   const vg = ctx.createRadialGradient(size / 2, size / 2, size * 0.2, size / 2, size / 2, size * 0.72);
   vg.addColorStop(0, 'rgba(0,0,0,0)');
   vg.addColorStop(1, 'rgba(0,0,0,0.5)');
@@ -136,8 +136,8 @@ export function makeCryptoWallTexture() {
   return tex;
 }
 
-// Halo radial doux (blanc → transparent) réutilisable comme sprite additif (néon des PEPE,
-// lueur des feux de camp…). La couleur est appliquée via le matériau (color) du sprite.
+// Soft radial halo (white -> transparent) reusable as an additive sprite (PEPE neon,
+// campfire glow...). The color is applied via the sprite's material (color).
 let _glowTex = null;
 export function makeRadialGlowTexture() {
   if (_glowTex) return _glowTex;
@@ -156,8 +156,8 @@ export function makeRadialGlowTexture() {
   return _glowTex;
 }
 
-// Panneau métallique « machine » (niveau 3) : plaque rivetée, grille, bandes danger, jauge,
-// crasse. Répétable pour habiller les murs des couloirs.
+// "Machine" metal panel (level 3): riveted plate, grid, hazard stripes, gauge,
+// grime. Tileable for dressing the corridor walls.
 let _machineTex = null;
 export function makeMachinePanelTexture() {
   if (_machineTex) return _machineTex;
@@ -167,7 +167,7 @@ export function makeMachinePanelTexture() {
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#23262b';
   ctx.fillRect(0, 0, s, s);
-  // Plaques (2×2) avec joints.
+  // Plates (2x2) with seams.
   ctx.strokeStyle = 'rgba(0,0,0,0.55)';
   ctx.lineWidth = 3;
   ctx.strokeRect(4, 4, s - 8, s - 8);
@@ -184,7 +184,7 @@ export function makeMachinePanelTexture() {
     ctx.arc(x, y, 4, 0, Math.PI * 2);
     ctx.fill();
   }
-  // Bande danger jaune/noire (en bas).
+  // Yellow/black hazard stripe (at the bottom).
   for (let x = 8; x < s - 8; x += 24) {
     ctx.fillStyle = ((x / 24) | 0) % 2 ? '#c9a12a' : '#161510';
     ctx.save();
@@ -195,7 +195,7 @@ export function makeMachinePanelTexture() {
     ctx.fillRect(-10, 0, 44, 16);
     ctx.restore();
   }
-  // Jauge (cadran) + petit écran.
+  // Gauge (dial) + small screen.
   ctx.strokeStyle = '#5a5f68';
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -211,7 +211,7 @@ export function makeMachinePanelTexture() {
   ctx.fillStyle = '#39ff9b';
   ctx.font = 'bold 16px "Courier New", monospace';
   ctx.fillText('ERR', 158, 76);
-  // Crasse.
+  // Grime.
   for (let i = 0; i < 16; i++) {
     const x = Math.random() * s, y = Math.random() * s, r = 8 + Math.random() * 22;
     const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
@@ -227,8 +227,8 @@ export function makeMachinePanelTexture() {
   return _machineTex;
 }
 
-// Fond « labyrinthe » pour le menu : un vrai maze (recursive backtracker) dessiné en traits
-// néon tamisés sur fond sombre. Renvoie un data URL (background-image CSS).
+// "Maze" background for the menu: a real maze (recursive backtracker) drawn with dim
+// neon lines on a dark background. Returns a data URL (CSS background-image).
 let _mazeBg = null;
 export function makeMazeBackgroundDataURL() {
   if (_mazeBg) return _mazeBg;
@@ -244,7 +244,7 @@ export function makeMazeBackgroundDataURL() {
   ctx.fillStyle = '#070608';
   ctx.fillRect(0, 0, w, h);
 
-  // Génération du labyrinthe (murs par cellule, creusés en DFS).
+  // Maze generation (walls per cell, carved via DFS).
   const cells = Array.from({ length: rows }, () => Array.from({ length: cols }, () => ({ n: true, e: true, s: true, w: true })));
   const seen = Array.from({ length: rows }, () => new Array(cols).fill(false));
   const stack = [[0, 0]];
@@ -268,7 +268,7 @@ export function makeMazeBackgroundDataURL() {
     stack.push([nr, nc]);
   }
 
-  // Dessin des murs (traits chauds avec une légère lueur).
+  // Drawing the walls (warm lines with a slight glow).
   ctx.strokeStyle = '#6a5330';
   ctx.lineWidth = 3;
   ctx.lineCap = 'round';
@@ -294,7 +294,7 @@ export function makeMazeBackgroundDataURL() {
   return _mazeBg;
 }
 
-// Planches de bois (pour le chalet) : lattes verticales, veinage, quelques nœuds.
+// Wood planks (for the chalet): vertical slats, grain, a few knots.
 export function makeWoodTexture() {
   const s = 256;
   const canvas = document.createElement('canvas');
@@ -308,14 +308,14 @@ export function makeWoodTexture() {
   for (let i = 0; i < planks; i++) {
     ctx.fillStyle = shades[i % shades.length];
     ctx.fillRect(i * pw, 0, pw, s);
-    // Joint sombre entre lattes.
+    // Dark seam between slats.
     ctx.strokeStyle = 'rgba(0,0,0,0.55)';
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(i * pw, 0);
     ctx.lineTo(i * pw, s);
     ctx.stroke();
-    // Veinage.
+    // Grain.
     for (let k = 0; k < 6; k++) {
       ctx.strokeStyle = `rgba(0,0,0,${0.05 + Math.random() * 0.09})`;
       ctx.lineWidth = 1 + Math.random();
@@ -326,7 +326,7 @@ export function makeWoodTexture() {
       ctx.stroke();
     }
   }
-  // Nœuds.
+  // Knots.
   for (let k = 0; k < 3; k++) {
     const x = Math.random() * s;
     const y = Math.random() * s;
@@ -346,7 +346,7 @@ export function makeWoodTexture() {
   return tex;
 }
 
-// Plafond : béton sombre taché (pour que le plafond ne soit pas un aplat noir non texturé).
+// Ceiling: stained dark concrete (so the ceiling isn't a flat, untextured black).
 export function makeCeilingTexture() {
   const size = 256;
   const canvas = document.createElement('canvas');
@@ -354,7 +354,7 @@ export function makeCeilingTexture() {
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#0c0d10';
   ctx.fillRect(0, 0, size, size);
-  // Dalles.
+  // Slabs.
   ctx.strokeStyle = 'rgba(255,255,255,0.05)';
   ctx.lineWidth = 2;
   for (let i = 0; i <= size; i += 64) {
@@ -365,7 +365,7 @@ export function makeCeilingTexture() {
     ctx.lineTo(size, i);
     ctx.stroke();
   }
-  // Taches d'humidité.
+  // Damp stains.
   for (let i = 0; i < 26; i++) {
     const x = Math.random() * size;
     const y = Math.random() * size;
@@ -382,8 +382,8 @@ export function makeCeilingTexture() {
   return tex;
 }
 
-// Panneau « CONTRÔLES » peint sur le mur de la salle de spawn.
-// Les libellés reflètent l'inversion gauche/droite réellement en vigueur.
+// "CONTROLS" panel painted on the spawn room wall.
+// The labels reflect the actual left/right inversion in effect.
 export function makeControlsTexture() {
   const w = 1024;
   const h = 640;
@@ -392,7 +392,7 @@ export function makeControlsTexture() {
   canvas.height = h;
   const ctx = canvas.getContext('2d');
 
-  // Fond ardoise sombre + cadre.
+  // Dark slate background + frame.
   ctx.fillStyle = '#0e0f14';
   ctx.fillRect(0, 0, w, h);
   ctx.strokeStyle = 'rgba(255,210,150,0.5)';
@@ -445,7 +445,7 @@ export function makeControlsTexture() {
   return tex;
 }
 
-// Écran cassé qui n'affiche qu'une phrase (ex. « Buy the dip. »).
+// Broken screen displaying just one phrase (e.g. "Buy the dip.").
 export function makeBrokenScreenTexture(text = 'Buy the dip.') {
   const w = 1024;
   const h = 640;
@@ -456,14 +456,14 @@ export function makeBrokenScreenTexture(text = 'Buy the dip.') {
 
   ctx.fillStyle = '#020403';
   ctx.fillRect(0, 0, w, h);
-  // Lueur d'écran.
+  // Screen glow.
   const g = ctx.createRadialGradient(w / 2, h / 2, 40, w / 2, h / 2, w * 0.7);
   g.addColorStop(0, 'rgba(20,60,40,0.5)');
   g.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, w, h);
 
-  // Texte phosphore vert.
+  // Green phosphor text.
   ctx.fillStyle = '#39ff9b';
   ctx.font = 'bold 96px "Courier New", monospace';
   ctx.textAlign = 'center';
@@ -473,7 +473,7 @@ export function makeBrokenScreenTexture(text = 'Buy the dip.') {
   ctx.fillText(text, w / 2, h / 2);
   ctx.shadowBlur = 0;
 
-  // Fissures (lignes claires partant d'un impact).
+  // Cracks (light lines radiating from an impact point).
   const ix = w * 0.66;
   const iy = h * 0.4;
   ctx.strokeStyle = 'rgba(220,235,230,0.85)';
@@ -492,13 +492,13 @@ export function makeBrokenScreenTexture(text = 'Buy the dip.') {
     }
     ctx.stroke();
   }
-  // Zone morte noire de l'impact.
+  // Black dead zone at the impact point.
   ctx.fillStyle = '#000';
   ctx.beginPath();
   ctx.arc(ix, iy, 26, 0, Math.PI * 2);
   ctx.fill();
 
-  // Lignes de balayage.
+  // Scan lines.
   ctx.fillStyle = 'rgba(0,0,0,0.18)';
   for (let y = 0; y < h; y += 4) ctx.fillRect(0, y, w, 2);
 
@@ -508,7 +508,7 @@ export function makeBrokenScreenTexture(text = 'Buy the dip.') {
   return tex;
 }
 
-// Graphique crypto en chute libre (chandeliers rouges + courbe qui s'effondre).
+// Crypto chart in free fall (red candlesticks + collapsing curve).
 export function makeChartTexture() {
   const w = 512;
   const h = 512;
@@ -519,7 +519,7 @@ export function makeChartTexture() {
 
   ctx.fillStyle = '#0b0d08';
   ctx.fillRect(0, 0, w, h);
-  // Grille.
+  // Grid.
   ctx.strokeStyle = 'rgba(120,120,90,0.15)';
   ctx.lineWidth = 1;
   for (let i = 0; i <= 8; i++) {
@@ -532,14 +532,14 @@ export function makeChartTexture() {
     ctx.stroke();
   }
 
-  // Courbe qui s'effondre + chandeliers majoritairement rouges.
+  // Collapsing curve + mostly red candlesticks.
   const n = 22;
   const cw = w / n;
   let y = h * 0.18;
   ctx.beginPath();
   ctx.moveTo(0, y);
   for (let i = 0; i < n; i++) {
-    const drop = (i / n) ** 1.6; // accélère la chute
+    const drop = (i / n) ** 1.6; // accelerates the fall
     const target = h * (0.18 + drop * 0.7);
     y += (target - y) * 0.6 + (Math.random() - 0.5) * 26;
     const x = i * cw + cw / 2;
@@ -554,7 +554,7 @@ export function makeChartTexture() {
     ctx.lineTo(x, y + bodyH + 10);
     ctx.stroke();
   }
-  // Ligne de tendance rouge vif.
+  // Bright red trend line.
   ctx.strokeStyle = '#ff3b30';
   ctx.lineWidth = 3;
   ctx.shadowColor = '#ff3b30';
@@ -570,7 +570,7 @@ export function makeChartTexture() {
   ctx.stroke();
   ctx.shadowBlur = 0;
 
-  // Pourcentage.
+  // Percentage.
   ctx.fillStyle = '#ff5b50';
   ctx.font = 'bold 64px Arial, sans-serif';
   ctx.textAlign = 'right';
@@ -582,7 +582,7 @@ export function makeChartTexture() {
   return tex;
 }
 
-// Plaque/légende sous un tableau (bande sombre, texte gravé).
+// Plaque/caption under a painting (dark band, engraved text).
 export function makeCaptionTexture(text) {
   const w = 640;
   const h = 128;
@@ -606,7 +606,7 @@ export function makeCaptionTexture(text) {
   return tex;
 }
 
-// Note de lore griffonnée, accrochée aux murs du chalet (charbon sur bois taché).
+// Scribbled lore note, hung on the chalet walls (charcoal on stained wood).
 export function makeChaletLoreTexture(variant = 0) {
   const w = 640;
   const h = 780;
@@ -614,7 +614,7 @@ export function makeChaletLoreTexture(variant = 0) {
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext('2d');
-  // Papier sale.
+  // Dirty paper.
   ctx.fillStyle = '#1c1a15';
   ctx.fillRect(0, 0, w, h);
   const vg = ctx.createRadialGradient(w / 2, h / 2, 40, w / 2, h / 2, w);
@@ -622,7 +622,7 @@ export function makeChaletLoreTexture(variant = 0) {
   vg.addColorStop(1, 'rgba(0,0,0,0.7)');
   ctx.fillStyle = vg;
   ctx.fillRect(0, 0, w, h);
-  // Taches.
+  // Stains.
   for (let i = 0; i < 14; i++) {
     const x = Math.random() * w;
     const y = Math.random() * h;
@@ -730,8 +730,8 @@ export function makeChaletLoreTexture(variant = 0) {
   return tex;
 }
 
-// Visage de BONK pour le screamer plein écran (chien-bête menaçant, yeux rouges, crocs).
-// Renvoie un data URL (utilisé comme src d'une <img>).
+// BONK's face for the full-screen screamer (menacing dog-beast, red eyes, fangs).
+// Returns a data URL (used as an <img> src).
 let _bonkFace = null;
 export function makeBonkFaceDataURL() {
   if (_bonkFace) return _bonkFace;
@@ -740,7 +740,7 @@ export function makeBonkFaceDataURL() {
   canvas.width = canvas.height = s;
   const ctx = canvas.getContext('2d');
 
-  // Fond sombre vignetté.
+  // Dark vignetted background.
   ctx.fillStyle = '#0a0604';
   ctx.fillRect(0, 0, s, s);
   const vg = ctx.createRadialGradient(s / 2, s / 2, 60, s / 2, s / 2, s * 0.72);
@@ -750,7 +750,7 @@ export function makeBonkFaceDataURL() {
   ctx.fillRect(0, 0, s, s);
 
   const cx = s / 2;
-  // Oreilles pointues.
+  // Pointed ears.
   ctx.fillStyle = '#8a6b32';
   for (const dir of [-1, 1]) {
     ctx.beginPath();
@@ -760,18 +760,18 @@ export function makeBonkFaceDataURL() {
     ctx.closePath();
     ctx.fill();
   }
-  // Tête (fauve).
+  // Head (tawny).
   ctx.fillStyle = '#c39a54';
   ctx.beginPath();
   ctx.ellipse(cx, 300, 170, 190, 0, 0, Math.PI * 2);
   ctx.fill();
-  // Museau clair.
+  // Light muzzle.
   ctx.fillStyle = '#e6cc90';
   ctx.beginPath();
   ctx.ellipse(cx, 380, 95, 105, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Yeux rouges luminescents.
+  // Luminous red eyes.
   ctx.shadowColor = '#ff2a10';
   ctx.shadowBlur = 40;
   for (const dir of [-1, 1]) {
@@ -781,7 +781,7 @@ export function makeBonkFaceDataURL() {
     ctx.fill();
   }
   ctx.shadowBlur = 0;
-  // Pupilles fendues.
+  // Slit pupils.
   ctx.fillStyle = '#160000';
   for (const dir of [-1, 1]) {
     ctx.beginPath();
@@ -789,27 +789,27 @@ export function makeBonkFaceDataURL() {
     ctx.fill();
   }
 
-  // Truffe.
+  // Nose (snout).
   ctx.fillStyle = '#0c0a08';
   ctx.beginPath();
   ctx.ellipse(cx, 360, 34, 24, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Gueule ouverte + crocs.
+  // Open jaw + fangs.
   ctx.fillStyle = '#180404';
   ctx.beginPath();
   ctx.ellipse(cx, 445, 78, 52, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = '#f4f0e6';
   for (let i = -2; i <= 2; i++) {
-    // Crocs du haut.
+    // Top fangs.
     ctx.beginPath();
     ctx.moveTo(cx + i * 28 - 12, 410);
     ctx.lineTo(cx + i * 28 + 12, 410);
     ctx.lineTo(cx + i * 28, 448);
     ctx.closePath();
     ctx.fill();
-    // Crocs du bas.
+    // Bottom fangs.
     ctx.beginPath();
     ctx.moveTo(cx + i * 28 - 12, 485);
     ctx.lineTo(cx + i * 28 + 12, 485);
@@ -822,7 +822,7 @@ export function makeBonkFaceDataURL() {
   return _bonkFace;
 }
 
-// Tableau accroché dans le chalet : explique les règles du niveau forêt.
+// Painting hung in the chalet: explains the forest level's rules.
 export function makeChaletBoardTexture() {
   const w = 1024;
   const h = 720;
@@ -831,7 +831,7 @@ export function makeChaletBoardTexture() {
   canvas.height = h;
   const ctx = canvas.getContext('2d');
 
-  // Fond bois sombre + cadre clair.
+  // Dark wood background + light frame.
   ctx.fillStyle = '#20160d';
   ctx.fillRect(0, 0, w, h);
   for (let i = 0; i < 60; i++) {
@@ -897,8 +897,8 @@ export function makeChaletBoardTexture() {
   return tex;
 }
 
-// Panneau « SE CACHER » de la salle de départ : explique qu'on peut se planquer dans un coin,
-// lampe éteinte, pour qu'Ansem ne te repère plus.
+// "HIDE" panel in the starting room: explains that you can hide in a corner,
+// flashlight off, so Ansem can no longer spot you.
 export function makeHideHintTexture() {
   const w = 1024;
   const h = 640;
@@ -950,7 +950,7 @@ export function makeHideHintTexture() {
   return tex;
 }
 
-// Panneau « EXIT » avec grosse flèche descendante, planté au-dessus du trou de sortie.
+// "EXIT" panel with a big downward arrow, placed above the exit hole.
 export function makeExitSignTexture() {
   const w = 512;
   const h = 640;
@@ -959,14 +959,14 @@ export function makeExitSignTexture() {
   canvas.height = h;
   const ctx = canvas.getContext('2d');
 
-  // Plaque métal sombre + cadre.
+  // Dark metal plate + frame.
   ctx.fillStyle = '#0a0e0c';
   ctx.fillRect(0, 0, w, h);
   ctx.strokeStyle = 'rgba(60,255,150,0.55)';
   ctx.lineWidth = 10;
   ctx.strokeRect(20, 20, w - 40, h - 40);
 
-  // Texte EXIT (vert néon lumineux).
+  // EXIT text (bright neon green).
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#57ff9b';
@@ -975,7 +975,7 @@ export function makeExitSignTexture() {
   ctx.font = 'bold 190px Arial, sans-serif';
   ctx.fillText('EXIT', w / 2, 170);
 
-  // Grosse flèche vers le bas (montre le trou).
+  // Big downward arrow (pointing at the hole).
   ctx.beginPath();
   const cx = w / 2;
   ctx.moveTo(cx - 90, 300);
@@ -996,7 +996,7 @@ export function makeExitSignTexture() {
   return tex;
 }
 
-// Affiche « RECHERCHÉ » placée à côté des photos d'Ansem dans la salle de réveil.
+// "WANTED" poster placed next to Ansem's photos in the wakeup room.
 export function makeAnsemPosterTexture() {
   const w = 512;
   const h = 700;
@@ -1016,7 +1016,7 @@ export function makeAnsemPosterTexture() {
   ctx.font = 'bold 86px Georgia, serif';
   ctx.fillText('WANTED', w / 2, 96);
 
-  // Emplacement photo (le portrait réel est un plan séparé par-dessus).
+  // Photo placeholder (the actual portrait is a separate plane layered on top).
   ctx.fillStyle = '#0e0e10';
   ctx.fillRect(w / 2 - 170, 150, 340, 340);
 
@@ -1034,15 +1034,15 @@ export function makeAnsemPosterTexture() {
   return tex;
 }
 
-// Traces de griffures : texture ALPHA (fond transparent) à plaquer sur un plan contre un mur.
-// Une « griffade » = un faisceau de 3–4 entailles parallèles (gouge sombre + lèvre claire
-// arrachée). On en dessine 1–2 par appel, orientées aléatoirement, pour varier chaque mur.
+// Claw marks: ALPHA texture (transparent background) to apply on a plane against a wall.
+// A "claw swipe" = a bundle of 3-4 parallel gashes (dark gouge + torn light-colored
+// lip). 1-2 are drawn per call, randomly oriented, to vary each wall.
 export function makeClawMarksTexture(seed = 0) {
   const size = 512;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
-  // rand déterministe basé sur le seed (évite Math.random pour des murs reproductibles).
+  // deterministic rand based on the seed (avoids Math.random for reproducible walls).
   let s = (seed * 9301 + 49297) % 233280 || 1;
   const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
 
@@ -1054,16 +1054,16 @@ export function makeClawMarksTexture(seed = 0) {
     const spread = 22 + rnd() * 16;
     for (let i = 0; i < n; i++) {
       const off = (i - (n - 1) / 2) * spread * (0.85 + rnd() * 0.3);
-      const bow = (rnd() - 0.5) * len * 0.25; // courbure de l'entaille
+      const bow = (rnd() - 0.5) * len * 0.25; // curvature of the gash
       const w = 3 + rnd() * 4;
-      // Gouge sombre.
+      // Dark gouge.
       ctx.strokeStyle = `rgba(8,5,4,${0.55 + rnd() * 0.3})`;
       ctx.lineWidth = w;
       ctx.beginPath();
       ctx.moveTo(-len / 2, off);
       ctx.quadraticCurveTo(0, off + bow, len / 2, off + (rnd() - 0.5) * 10);
       ctx.stroke();
-      // Lèvre claire arrachée (décalée), pour le relief.
+      // Torn light-colored lip (offset), for depth.
       ctx.strokeStyle = `rgba(210,190,160,${0.12 + rnd() * 0.12})`;
       ctx.lineWidth = Math.max(1, w * 0.4);
       ctx.beginPath();
@@ -1091,8 +1091,8 @@ export function makeClawMarksTexture(seed = 0) {
   return tex;
 }
 
-// Roche de mine : paroi rocheuse sombre (dalles irrégulières + fissures + éclats clairs).
-// Calquée sur makeWoodTexture / makeCeilingTexture (canvas → CanvasTexture répétable).
+// Mine rock: dark rocky wall (irregular slabs + cracks + light-colored flecks).
+// Modeled on makeWoodTexture / makeCeilingTexture (canvas -> tileable CanvasTexture).
 export function makeRockTexture() {
   const s = 256;
   const canvas = document.createElement('canvas');
@@ -1100,7 +1100,7 @@ export function makeRockTexture() {
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#3a3730';
   ctx.fillRect(0, 0, s, s);
-  // Blocs de pierre (dalles) légèrement teintés.
+  // Stone blocks (slabs) lightly tinted.
   const shades = ['#403c34', '#34312b', '#454037', '#2f2c26', '#3b372f'];
   for (let i = 0; i < 26; i++) {
     ctx.fillStyle = shades[i % shades.length];
@@ -1108,7 +1108,7 @@ export function makeRockTexture() {
     const h = 22 + Math.random() * 44;
     ctx.fillRect(Math.random() * s, Math.random() * s, w, h);
   }
-  // Joints/fissures sombres.
+  // Dark seams/cracks.
   ctx.strokeStyle = 'rgba(0,0,0,0.55)';
   for (let i = 0; i < 40; i++) {
     ctx.lineWidth = 0.6 + Math.random() * 2;
@@ -1119,7 +1119,7 @@ export function makeRockTexture() {
     ctx.lineTo(x + (Math.random() - 0.5) * 90, y + (Math.random() - 0.5) * 90);
     ctx.stroke();
   }
-  // Éclats/minéraux clairs (piqûres).
+  // Light-colored mineral flecks (pitting).
   for (let i = 0; i < 60; i++) {
     ctx.fillStyle = `rgba(150,140,120,${0.05 + Math.random() * 0.12})`;
     const r = Math.random() * 2.2;
@@ -1127,7 +1127,7 @@ export function makeRockTexture() {
     ctx.arc(Math.random() * s, Math.random() * s, r, 0, Math.PI * 2);
     ctx.fill();
   }
-  // Taches humides sombres (dégradés radiaux).
+  // Dark damp stains (radial gradients).
   for (let i = 0; i < 8; i++) {
     const x = Math.random() * s;
     const y = Math.random() * s;
@@ -1145,15 +1145,15 @@ export function makeRockTexture() {
   return tex;
 }
 
-// Panneau explicatif du chalet : « rester dans la lumière - BONK craint le feu ».
+// Chalet explanatory panel: "stay in the light - BONK fears fire".
 export function makeFireHintTexture() {
-  const w = 760; // plus large → le titre tient en entier
+  const w = 760; // wider -> so the title fits fully
   const h = 440;
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext('2d');
-  // Fond bois sombre + cadre.
+  // Dark wood background + frame.
   ctx.fillStyle = '#241a10';
   ctx.fillRect(0, 0, w, h);
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
@@ -1166,7 +1166,7 @@ export function makeFireHintTexture() {
 
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  // Titre.
+  // Title.
   ctx.fillStyle = '#ffcf6a';
   ctx.shadowColor = '#ff8a2a';
   ctx.shadowBlur = 24;
@@ -1174,7 +1174,7 @@ export function makeFireHintTexture() {
   ctx.fillText('STAY IN THE LIGHT', w / 2, 88);
   ctx.shadowBlur = 0;
 
-  // Flamme dessinée (simple) au centre.
+  // Simple drawn flame in the center.
   const fx = w / 2;
   const fy = 210;
   const flame = ctx.createRadialGradient(fx, fy + 20, 4, fx, fy, 70);
@@ -1188,7 +1188,7 @@ export function makeFireHintTexture() {
   ctx.quadraticCurveTo(fx - 55, fy, fx, fy - 70);
   ctx.fill();
 
-  // Texte explicatif.
+  // Explanatory text.
   ctx.fillStyle = '#e9d9bd';
   ctx.font = '30px Georgia, serif';
   ctx.fillText('BONK fears the fire.', w / 2, 300);

@@ -1,9 +1,9 @@
-// Authentification par wallet Phantom (Solana). Prouve la possession du wallet en signant un
-// défi émis par le serveur, puis conserve la session vérifiée (adresse + jeton) en localStorage.
-// Voir server/auth.js pour la vérification côté serveur.
+// Phantom wallet (Solana) authentication. Proves wallet ownership by signing a
+// challenge issued by the server, then keeps the verified session (address + token) in localStorage.
+// See server/auth.js for server-side verification.
 
-const TOKEN_KEY = 'escape-bonk-wallet-token';
-const ADDR_KEY = 'escape-bonk-wallet-addr';
+const TOKEN_KEY = 'escape-ansem-wallet-token';
+const ADDR_KEY = 'escape-ansem-wallet-addr';
 
 function provider() {
   if (typeof window === 'undefined') return null;
@@ -34,7 +34,7 @@ export function isConnected() {
   return !!(getWallet() && getAuthToken());
 }
 
-// Adresse raccourcie pour l'affichage : CV9d…5pump.
+// Shortened address for display: CV9d...5pump.
 export function shortWallet(addr = getWallet()) {
   return addr ? `${addr.slice(0, 4)}…${addr.slice(-4)}` : '';
 }
@@ -44,7 +44,7 @@ function store(addr, token) {
     localStorage.setItem(ADDR_KEY, addr);
     localStorage.setItem(TOKEN_KEY, token);
   } catch {
-    /* stockage indisponible */
+    /* storage unavailable */
   }
 }
 
@@ -57,11 +57,11 @@ function clear() {
   }
 }
 
-// Connecte Phantom, fait signer le défi et enregistre la session vérifiée. Renvoie l'adresse.
+// Connects Phantom, has the challenge signed, and stores the verified session. Returns the address.
 export async function connectWallet() {
   const p = provider();
   if (!p) {
-    // Phantom absent : renvoie l'utilisateur vers l'installation.
+    // Phantom missing: sends the user to the install page.
     window.open('https://phantom.app/', '_blank', 'noopener');
     throw new Error('phantom-missing');
   }
@@ -70,7 +70,7 @@ export async function connectWallet() {
   const pubkey = (res?.publicKey ?? p.publicKey)?.toString();
   if (!pubkey) throw new Error('no-pubkey');
 
-  // 1) défi
+  // 1) challenge
   const nres = await fetch('/api/auth/nonce', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -79,15 +79,15 @@ export async function connectWallet() {
   if (!nres.ok) throw new Error('nonce-failed');
   const { nonce, message } = await nres.json();
 
-  // 2) signature du message par le wallet
+  // 2) wallet signs the message
   const encoded = new TextEncoder().encode(message);
   const signed = await p.signMessage(encoded, 'utf8');
-  const sigBytes = signed?.signature ?? signed; // selon la version de Phantom
+  const sigBytes = signed?.signature ?? signed; // depends on Phantom version
   const signature = Array.from(sigBytes)
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
 
-  // 3) vérification serveur → jeton de session
+  // 3) server verification -> session token
   const vres = await fetch('/api/auth/verify', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

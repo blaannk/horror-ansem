@@ -1,11 +1,11 @@
-// Audio 100 % synthétisé via la Web Audio API (aucun fichier requis).
-//  - Drone ambiant continu et inquiétant.
-//  - Battement de cœur dont le tempo ET le volume montent quand le monstre approche.
-//  - Growl guttural directionnel (panoramique selon la position du monstre).
-//  - Stingers sur capture / évasion.
+// Audio 100% synthesized via the Web Audio API (no files required).
+//  - Continuous, unsettling ambient drone.
+//  - Heartbeat whose tempo AND volume rise as the monster approaches.
+//  - Directional guttural growl (panned according to the monster's position).
+//  - Stingers on capture / escape.
 //
-// `update(dt, proximity, pan)` est appelé chaque frame : proximity ∈ [0..1]
-// (0 = monstre loin, 1 = sur toi), pan ∈ [-1..1] (gauche/droite).
+// `update(dt, proximity, pan)` is called every frame: proximity ∈ [0..1]
+// (0 = monster far, 1 = on you), pan ∈ [-1..1] (left/right).
 
 export class AudioManager {
   constructor(volume = 0.8) {
@@ -21,21 +21,21 @@ export class AudioManager {
     this.kbNext = 0.2;
     this.neonGain = null;
     this.dread = null;
-    this.monsterVoice = 'ansem'; // 'ansem' (growl/screech) | 'bonk' (pas lourds + rugissement)
-    this.buffers = null; // échantillons audio décodés (rugissement, screamer, musiques, screams)
-    this._near = null; // boucle de proximité d'Ansem (fichier)
-    this._music = null; // source de la musique de fond en boucle (par niveau)
+    this.monsterVoice = 'ansem'; // 'ansem' (growl/screech) | 'bonk' (heavy steps + roar)
+    this.buffers = null; // decoded audio samples (roar, screamer, music tracks, screams)
+    this._near = null; // Ansem's proximity loop (file)
+    this._music = null; // looping background music source (per level)
     this._musicWanted = false;
     this._musicName = null;
     this._musicGain = 0.32;
   }
 
-  // Choisit la « voix » du monstre : coupe le growl/screech d'Ansem pour BONK.
+  // Chooses the monster's "voice": cuts Ansem's growl/screech for BONK.
   setMonsterVoice(v) {
     this.monsterVoice = v;
   }
 
-  // Doit être appelé suite à une interaction utilisateur (clic « Jouer »).
+  // Must be called following a user interaction (clicking "Play").
   start() {
     if (this.ctx) {
       this.ctx.resume?.();
@@ -57,15 +57,15 @@ export class AudioManager {
     this.running = true;
   }
 
-  // Charge/décode les fichiers audio du niveau forêt (fournis par l'utilisateur, dans /sfx).
+  // Loads/decodes the forest level's audio files (provided by the user, in /sfx).
   #loadSamples() {
     if (this.buffers) return;
     this.buffers = {};
     const files = {
       roar: '/sfx/bonk-roar.mp3',
       screamer: '/sfx/bonk-screamer.mp3',
-      ansemScreamer: '/sfx/ansem-screamer.mp3', // apparition + jumpscare d'Ansem
-      ansemNear: '/sfx/ansem-near.mp3', // son d'Ansem quand il se rapproche (boucle)
+      ansemScreamer: '/sfx/ansem-screamer.mp3', // Ansem's appearance + jumpscare
+      ansemNear: '/sfx/ansem-near.mp3', // sound of Ansem approaching (loop)
       forestTheme: '/sfx/forest-theme.mp3',
       level1Music: '/sfx/level1-music.mp3',
       level3Music: '/sfx/level3-music.mp3',
@@ -81,17 +81,17 @@ export class AudioManager {
         .then((ab) => this.ctx.decodeAudioData(ab))
         .then((buf) => {
           this.buffers[name] = buf;
-          this.#ensureMusic(); // démarre la musique en boucle si déjà demandée et prête
+          this.#ensureMusic(); // starts the looping music if already requested and ready
         })
         .catch(() => {
-          /* fichier absent → repli synthé */
+          /* file missing -> synth fallback */
         });
     }
   }
 
-  // Joue un échantillon décodé via le master. loop=true → renvoie { src, gain } (pour l'arrêter).
-  // duration>0 coupe la lecture après N s (avec fadeOut optionnel) - utile pour tronquer un
-  // fichier (ex. couper la fin parlée du son de réveil).
+  // Plays a decoded sample through the master. loop=true -> returns { src, gain } (to stop it).
+  // duration>0 cuts playback after N s (with optional fadeOut) - useful for trimming a
+  // file (e.g. cutting the spoken ending off the wakeup sound).
   playSample(name, { gain = 0.8, loop = false, duration = 0, fadeOut = 0 } = {}) {
     if (!this.ctx || !this.buffers || !this.buffers[name]) return null;
     const src = this.ctx.createBufferSource();
@@ -113,21 +113,21 @@ export class AudioManager {
     return { src, gain: g };
   }
 
-  // Musique de fond en boucle (par niveau : thème forêt, musique niveau 3…). Fondu +
-  // résistance au timing de chargement (réessai depuis #loadSamples).
+  // Looping background music (per level: forest theme, level 3 music...). Fade in +
+  // resilient to loading timing (retried from #loadSamples).
   startMusic(name, gain = 0.32) {
-    // Déjà en train de jouer cette piste → on la laisse continuer (pas de redémarrage).
-    // Permet à la musique du chapitre 1 de rester continue à travers ses sous-niveaux.
+    // Already playing this track -> let it keep going (no restart).
+    // Lets chapter 1's music stay continuous across its sub-levels.
     if (this._music && this._musicName === name) return;
     this._musicWanted = true;
     this._musicName = name;
     this._musicGain = gain;
     this.#ensureMusic();
-    // Baisse le drone synthé pour laisser respirer la musique.
+    // Lowers the synth drone to let the music breathe.
     if (this.droneGain && this.ctx) this.droneGain.gain.setTargetAtTime(0.04, this.ctx.currentTime, 1);
   }
 
-  // Nom de la piste EN COURS de lecture (null si aucune) - pour décider s'il faut la couper.
+  // Name of the CURRENTLY playing track (null if none) - to decide whether to stop it.
   currentMusicName() {
     return this._music ? this._musicName : null;
   }
@@ -135,7 +135,7 @@ export class AudioManager {
   #ensureMusic() {
     if (!this._musicWanted || this._music || !this.ctx || !this._musicName) return;
     const t = this.playSample(this._musicName, { gain: 0.0001, loop: true });
-    if (!t) return; // pas encore décodé → réessai depuis #loadSamples
+    if (!t) return; // not decoded yet -> retried from #loadSamples
     this._music = t;
     t.gain.gain.setTargetAtTime(this._musicGain, this.ctx.currentTime, 1.0);
   }
@@ -154,8 +154,8 @@ export class AudioManager {
     }
   }
 
-  // Screamer sonore de BONK (fichier fourni ; repli sur le cri synthé). On coupe d'abord un
-  // éventuel rugissement encore en cours pour NE laisser QUE le son du screamer.
+  // BONK's sound screamer (provided file; falls back to the synth scream). First cuts any
+  // roar still playing so ONLY the screamer sound is left.
   bonkScream() {
     if (!this.running || !this.ctx) return;
     try {
@@ -168,8 +168,8 @@ export class AudioManager {
     this.sting('scream');
   }
 
-  // Screamer sonore d'ANSEM (fichier « apparition et jumpscare » ; repli sur le cri synthé).
-  // Coupe d'abord la boucle de proximité pour ne laisser QUE le screamer.
+  // ANSEM's sound screamer ("appearance and jumpscare" file; falls back to the synth scream).
+  // First cuts the proximity loop so ONLY the screamer is left.
   ansemScream() {
     if (!this.running || !this.ctx) return;
     if (this._near) this._near.gain.gain.setTargetAtTime(0.0001, this.ctx.currentTime, 0.05);
@@ -177,8 +177,8 @@ export class AudioManager {
     this.sting('scream');
   }
 
-  // Boucle de proximité d'Ansem (fichier « quand il est proche de toi ») : volume piloté par la
-  // proximité, panoramique selon la position. Remplace le growl/screech synthétisés.
+  // Ansem's proximity loop ("when he's close to you" file): volume driven by
+  // proximity, panned according to position. Replaces the synthesized growl/screech.
   #updateNear(level, pan) {
     if (!this.ctx) return;
     if (!this._near && this.buffers?.ansemNear) {
@@ -221,7 +221,7 @@ export class AudioManager {
 
   #buildGrowl() {
     const ctx = this.ctx;
-    // Bruit blanc en boucle.
+    // Looping white noise.
     const len = ctx.sampleRate * 2;
     const buffer = ctx.createBuffer(1, len, ctx.sampleRate);
     const data = buffer.getChannelData(0);
@@ -236,7 +236,7 @@ export class AudioManager {
     bp.frequency.value = 140;
     bp.Q.value = 4;
 
-    // LFO pour un grognement « vivant ».
+    // LFO for a "living" growl.
     const lfo = ctx.createOscillator();
     lfo.frequency.value = 7;
     const lfoGain = ctx.createGain();
@@ -256,7 +256,7 @@ export class AudioManager {
     this.growlPan = panner;
   }
 
-  // Cri dissonant et distordu : ne monte qu'à très courte distance (sur le point d'être attrapé).
+  // Dissonant, distorted screech: only rises at very close range (about to be caught).
   #buildScreech() {
     const ctx = this.ctx;
     const gain = ctx.createGain();
@@ -289,7 +289,7 @@ export class AudioManager {
     this.screechGain = gain;
   }
 
-  // Un pas : burst de bruit filtré + impact basse fréquence, panoramique inclus.
+  // A footstep: filtered noise burst + low-frequency impact, panned.
   #step({ kind = 'player', gain = 0.3, pan = 0 }) {
     const ctx = this.ctx;
     const now = ctx.currentTime;
@@ -300,7 +300,7 @@ export class AudioManager {
     panner.pan.value = Math.max(-1, Math.min(1, pan));
     panner.connect(this.master);
 
-    // Burst de bruit (frottement/poussière ; BONK = impact de patte plus sourd).
+    // Noise burst (scuffing/dust; BONK = duller paw impact).
     const dur = isBonk ? 0.26 : isMonster ? 0.2 : 0.1;
     const len = Math.floor(ctx.sampleRate * dur);
     const buf = ctx.createBuffer(1, len, ctx.sampleRate);
@@ -317,7 +317,7 @@ export class AudioManager {
     noise.start(now);
     noise.stop(now + dur);
 
-    // Impact basse fréquence (BONK = thud plus grave et plus long).
+    // Low-frequency impact (BONK = deeper, longer thud).
     const f0 = isBonk ? 50 : isMonster ? 65 : 115;
     const osc = ctx.createOscillator();
     osc.type = 'sine';
@@ -332,12 +332,12 @@ export class AudioManager {
     osc.stop(now + 0.32);
   }
 
-  // Rugissement de BONK : fichier fourni (/sfx) si disponible, sinon repli synthé guttural.
+  // BONK's roar: provided file (/sfx) if available, otherwise synth guttural fallback.
   bonkRoar() {
     if (!this.running || !this.ctx) return;
     const sample = this.playSample('roar', { gain: 0.9 });
     if (sample) {
-      this._roar = sample; // suivi pour pouvoir le couper au screamer
+      this._roar = sample; // tracked so it can be cut when the screamer plays
       return;
     }
     const ctx = this.ctx;
@@ -375,7 +375,7 @@ export class AudioManager {
     sub.stop(now + 0.95);
   }
 
-  // Un « lub-dub » de battement de cœur.
+  // A heartbeat "lub-dub".
   #thump(intensity) {
     const ctx = this.ctx;
     const now = ctx.currentTime;
@@ -394,10 +394,10 @@ export class AudioManager {
     };
     const v = 0.25 + intensity * 0.8;
     beat(now, v);
-    beat(now + 0.16, v * 0.7); // second battement
+    beat(now + 0.16, v * 0.7); // second beat
   }
 
-  // Bourdonnement de néon (hum 60/120 Hz + léger trémolo). on=true l'allume.
+  // Neon buzz (60/120 Hz hum + slight tremolo). on=true turns it on.
   neonBuzz(on) {
     if (!this.ctx) return;
     if (!this.neonGain) {
@@ -415,7 +415,7 @@ export class AudioManager {
         osc.connect(gain);
         osc.start();
       }
-      // Trémolo (grésillement).
+      // Tremolo (crackle).
       const lfo = ctx.createOscillator();
       lfo.type = 'square';
       lfo.frequency.value = 9;
@@ -433,7 +433,7 @@ export class AudioManager {
     this.kbClock = 0;
   }
 
-  // Petit clic de touche mécanique (lointain).
+  // Small distant mechanical key click.
   #keyClick() {
     const ctx = this.ctx;
     const now = ctx.currentTime;
@@ -453,7 +453,7 @@ export class AudioManager {
     noise.stop(now + 0.03);
   }
 
-  // Sting de chute des cours (le marché s'effondre).
+  // Market-crash sting (the market collapses).
   crash() {
     if (!this.running || !this.ctx) return;
     const ctx = this.ctx;
@@ -472,14 +472,14 @@ export class AudioManager {
     osc.stop(now + 0.95);
   }
 
-  // Chute dans le trou : whoosh de vent qui enfle + sous-grave descendant (sensation de plongée).
+  // Falling into the hole: swelling wind whoosh + descending sub-bass (falling sensation).
   fallWhoosh() {
     if (!this.running || !this.ctx) return;
     const ctx = this.ctx;
     const now = ctx.currentTime;
     const dur = 1.5;
 
-    // Vent : bruit passe-bande dont la fréquence chute + volume qui enfle puis coupe.
+    // Wind: bandpass noise with falling frequency + volume that swells then cuts.
     const len = Math.floor(ctx.sampleRate * dur);
     const buf = ctx.createBuffer(1, len, ctx.sampleRate);
     const d = buf.getChannelData(0);
@@ -499,7 +499,7 @@ export class AudioManager {
     noise.start(now);
     noise.stop(now + dur);
 
-    // Sous-grave qui plonge.
+    // Diving sub-bass.
     const osc = ctx.createOscillator();
     osc.type = 'sine';
     osc.frequency.setValueAtTime(140, now);
@@ -513,8 +513,8 @@ export class AudioManager {
     osc.stop(now + dur + 0.1);
   }
 
-  // Tension montante du décompte : grondement + whine qui s'intensifient.
-  // startDread() puis setDread(x) chaque frame avec x ∈ [0..1], puis stopDread().
+  // Rising dread of the countdown: rumble + whine that intensify.
+  // startDread() then setDread(x) every frame with x ∈ [0..1], then stopDread().
   startDread() {
     if (!this.ctx || this.dread) return;
     const ctx = this.ctx;
@@ -562,8 +562,8 @@ export class AudioManager {
     }
   }
 
-  // Chuchotement menaçant entièrement synthétisé (remplace la voix TTS).
-  // Bruit filtré (formants mouvants) + trémolo « syllabes » + écho + sous-grave.
+  // Fully synthesized menacing whisper (replaces the TTS voice).
+  // Filtered noise (moving formants) + "syllable" tremolo + echo + sub-bass.
   whisper() {
     if (!this.running || !this.ctx) return;
     const ctx = this.ctx;
@@ -577,7 +577,7 @@ export class AudioManager {
     const src = ctx.createBufferSource();
     src.buffer = buf;
 
-    // Formants qui bougent (voyelles chuchotées).
+    // Moving formants (whispered vowels).
     const bp = ctx.createBiquadFilter();
     bp.type = 'bandpass';
     bp.Q.value = 7;
@@ -585,7 +585,7 @@ export class AudioManager {
     const fF = [420, 720, 360, 600];
     fT.forEach((t, i) => bp.frequency.setValueAtTime(fF[i], now + t));
 
-    // Trémolo → impression de syllabes.
+    // Tremolo -> gives the impression of syllables.
     const trem = ctx.createGain();
     trem.gain.value = 0.5;
     const lfo = ctx.createOscillator();
@@ -597,7 +597,7 @@ export class AudioManager {
     lfo.start(now);
     lfo.stop(now + dur);
 
-    // Enveloppe globale.
+    // Overall envelope.
     const env = ctx.createGain();
     env.gain.setValueAtTime(0.0001, now);
     env.gain.exponentialRampToValueAtTime(0.16, now + 0.18);
@@ -607,7 +607,7 @@ export class AudioManager {
     const pan = ctx.createStereoPanner();
     pan.pan.value = (Math.random() * 2 - 1) * 0.4;
 
-    // Écho / réverbération de couloir.
+    // Corridor echo / reverb.
     const delay = ctx.createDelay(1.0);
     delay.delayTime.value = 0.31;
     const fb = ctx.createGain();
@@ -622,7 +622,7 @@ export class AudioManager {
     src.start(now);
     src.stop(now + dur);
 
-    // Sous-grave menaçant.
+    // Menacing sub-bass.
     const osc = ctx.createOscillator();
     osc.type = 'sine';
     osc.frequency.setValueAtTime(74, now);
@@ -641,7 +641,7 @@ export class AudioManager {
     if (!this.running || !this.ctx) return;
     const now = this.ctx.currentTime;
 
-    // Ambiance clavier (frappe lointaine et irrégulière).
+    // Keyboard ambience (distant, irregular typing).
     if (this.kbOn) {
       this.kbClock += dt;
       if (this.kbClock >= this.kbNext) {
@@ -654,14 +654,14 @@ export class AudioManager {
     const pan = Math.max(-1, Math.min(1, cues.pan ?? 0));
     const bonk = this.monsterVoice === 'bonk';
 
-    // Growl/screech SYNTHÉTISÉS RETIRÉS : la « voix » d'Ansem est désormais le fichier
-    // ansem-near (boucle) dont le volume monte avec la proximité. BONK garde ses sons fichiers.
+    // SYNTHESIZED growl/screech REMOVED: Ansem's "voice" is now the ansem-near
+    // file (loop) whose volume rises with proximity. BONK keeps its file-based sounds.
     this.growlGain.gain.setTargetAtTime(0, now, 0.1);
     this.screechGain?.gain.setTargetAtTime(0, now, 0.08);
     this.droneFilter.frequency.setTargetAtTime(220 + p * 600, now, 0.2);
     this.#updateNear(bonk ? 0 : p, pan);
 
-    // Battement de cœur : intervalle de 1.25 s (calme) à 0.34 s (panique).
+    // Heartbeat: interval from 1.25 s (calm) to 0.34 s (panic).
     const interval = 1.25 - p * 0.91;
     this.beatClock += dt;
     if (p > 0.05 && this.beatClock >= interval) {
@@ -669,7 +669,7 @@ export class AudioManager {
       this.#thump(p);
     }
 
-    // Pas du joueur (cadence selon marche/sprint).
+    // Player footsteps (cadence based on walk/sprint).
     if (cues.playerMoving) {
       this.playerStepClock += dt;
       const stride = cues.playerSprinting ? 0.3 : 0.46;
@@ -678,20 +678,20 @@ export class AudioManager {
         this.#step({ kind: 'player', gain: cues.playerSprinting ? 0.3 : 0.22 });
       }
     } else {
-      this.playerStepClock = 0.5; // premier pas immédiat à la reprise
+      this.playerStepClock = 0.5; // immediate first step on resuming
     }
 
-    // Pas du monstre. BONK : pas LOURDS qui accélèrent (galop) et deviennent de plus en plus
-    // forts à mesure qu'il se rapproche. Ansem : boiterie plus légère.
+    // Monster footsteps. BONK: HEAVY steps that speed up (gallop) and grow louder
+    // as it gets closer. Ansem: a lighter limp.
     if (cues.monsterMoving) {
       this.monsterStepClock += dt;
       let stride;
       let gain;
       if (bonk) {
-        stride = 0.5 - p * 0.28; // 0.5 s (loin) → 0.22 s (près) : galop
-        gain = 0.18 + p * 1.1; // franchement plus fort en approchant
+        stride = 0.5 - p * 0.28; // 0.5 s (far) -> 0.22 s (near): gallop
+        gain = 0.18 + p * 1.1; // noticeably louder as it approaches
       } else {
-        stride = this.monsterStepParity ? 0.34 : 0.56; // boiterie
+        stride = this.monsterStepParity ? 0.34 : 0.56; // limp
         gain = 0.12 + p * 0.6;
       }
       if (this.monsterStepClock >= stride) {
@@ -704,9 +704,9 @@ export class AudioManager {
     }
   }
 
-  // Au CHANGEMENT DE NIVEAU : coupe les sons transitoires du niveau précédent (néon, clavier,
-  // boucle de proximité d'Ansem, growl/screech, dread). La MUSIQUE est gérée à part (track-aware)
-  // pour rester continue quand le niveau suivant utilise la même piste.
+  // On LEVEL CHANGE: cuts the previous level's transient sounds (neon, keyboard,
+  // Ansem's proximity loop, growl/screech, dread). MUSIC is handled separately (track-aware)
+  // so it stays continuous when the next level uses the same track.
   silenceTransients() {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
@@ -718,8 +718,8 @@ export class AudioManager {
     this.stopDread();
   }
 
-  // Coupe tous les sons continus (drone, growl, screech, néon, dread, clavier).
-  // Le stinger ponctuel (catch/win) reste audible car branché à part.
+  // Cuts all continuous sounds (drone, growl, screech, neon, dread, keyboard).
+  // The one-shot stinger (catch/win) stays audible since it's wired separately.
   silenceAmbience() {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
@@ -733,7 +733,7 @@ export class AudioManager {
     this.stopMusic();
   }
 
-  // Stinger ponctuel.
+  // One-shot stinger.
   sting(type) {
     if (!this.running || !this.ctx) return;
     const ctx = this.ctx;
@@ -742,7 +742,7 @@ export class AudioManager {
     g.connect(this.master);
 
     if (type === 'scream') {
-      // Screamer : cri strident, saturé et fort.
+      // Screamer: shrill, saturated, loud scream.
       g.gain.setValueAtTime(0.85, now);
       g.gain.exponentialRampToValueAtTime(0.0001, now + 1.4);
       const shaper = ctx.createWaveShaper();
@@ -796,7 +796,7 @@ export class AudioManager {
     }
   }
 
-  // Ramassage d'une pièce PEPE : petit « zap » néon qui monte + arpège clair et brillant.
+  // Picking up a PEPE coin: small rising neon "zap" + bright, clear arpeggio.
   coinPickup() {
     if (!this.running || !this.ctx) return;
     const ctx = this.ctx;
@@ -805,7 +805,7 @@ export class AudioManager {
     g.gain.value = 0.5;
     g.connect(this.master);
 
-    // Zap néon : balayage rapide vers l'aigu, légèrement saturé.
+    // Neon zap: quick sweep upward in pitch, slightly saturated.
     const zg = ctx.createGain();
     zg.gain.setValueAtTime(0.0001, now);
     zg.gain.exponentialRampToValueAtTime(0.28, now + 0.015);
@@ -822,7 +822,7 @@ export class AudioManager {
     zap.start(now);
     zap.stop(now + 0.18);
 
-    // Arpège chime brillant par-dessus.
+    // Bright chime arpeggio on top.
     [880, 1320, 1760].forEach((f, i) => {
       const t = now + 0.04 + i * 0.06;
       const osc = ctx.createOscillator();

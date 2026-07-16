@@ -3,11 +3,11 @@ import { CELL } from '../config.js';
 import { MAX_WALL_H } from './mapData.js';
 import { makeCryptoWallTexture, makeControlsTexture, makeCeilingTexture } from './textures.js';
 
-// Construit la géométrie Three.js de la carte FIXE : sol, murs hauts (instanciés),
-// plafonds par cellule à hauteurs variées + « risers » comblant les transitions,
-// plateformes basses, lumières (salle de spawn éclairée), panneau de contrôles mural
-// et portail de sortie. Les plafonds bas masquent le haut des murs → impression de
-// hauteurs très différentes selon les zones.
+// Builds the Three.js geometry of the FIXED map: floor, tall walls (instanced),
+// per-cell ceilings at varied heights + "risers" filling the transitions,
+// low platforms, lights (lit spawn room), wall controls panel,
+// and exit portal. Low ceilings hide the top of the walls, giving the impression of
+// very different heights depending on the area.
 
 export class MazeRenderer {
   constructor(maze, opts = {}) {
@@ -19,8 +19,8 @@ export class MazeRenderer {
     this.#build();
   }
 
-  // « Ouvert » = praticable OU porte (rendue séparément) OU plateforme basse :
-  // ces cellules reçoivent un plafond et ne sont PAS instanciées comme murs pleins.
+  // "Open" = walkable OR door (rendered separately) OR low platform:
+  // these cells get a ceiling and are NOT instanced as solid walls.
   #isOpen(col, row) {
     return !this.maze.isWall(col, row) || this.maze.isLowBlock(col, row) || this.maze.isDoor(col, row);
   }
@@ -30,7 +30,7 @@ export class MazeRenderer {
     const spanX = maze.cols * CELL;
     const spanZ = maze.rows * CELL;
 
-    // --- Sol ---
+    // --- Floor ---
     const floorGeo = new THREE.PlaneGeometry(spanX, spanZ);
     const floorMat = new THREE.MeshStandardMaterial({ color: 0x0d0d12, roughness: 0.95 });
     const floor = new THREE.Mesh(floorGeo, floorMat);
@@ -39,17 +39,17 @@ export class MazeRenderer {
     this.group.add(floor);
     this.disposables.push(floorGeo, floorMat);
 
-    // --- Comptage des cellules ---
+    // --- Cell counting ---
     let wallCount = 0;
     let openCount = 0;
     for (let row = 0; row < maze.rows; row++) {
       for (let col = 0; col < maze.cols; col++) {
         if (this.#isOpen(col, row)) openCount++;
-        else if (maze.isWall(col, row)) wallCount++; // mur plein (hors plateforme)
+        else if (maze.isWall(col, row)) wallCount++; // solid wall (not a platform)
       }
     }
 
-    // --- Murs hauts (InstancedMesh) ---
+    // --- Tall walls (InstancedMesh) ---
     const wallGeo = new THREE.BoxGeometry(CELL, MAX_WALL_H, CELL);
     this.wallTexture = makeCryptoWallTexture();
     const wallMat = new THREE.MeshStandardMaterial({ map: this.wallTexture, roughness: 0.92 });
@@ -78,7 +78,7 @@ export class MazeRenderer {
     if (walls.instanceColor) walls.instanceColor.needsUpdate = true;
     this.group.add(walls);
 
-    // --- Plafonds par cellule (hauteur de zone) ---
+    // --- Per-cell ceilings (zone height) ---
     const ceilTileGeo = new THREE.PlaneGeometry(CELL, CELL);
     this.ceilTexture = makeCeilingTexture();
     const ceilMat = new THREE.MeshStandardMaterial({ map: this.ceilTexture, color: 0xffffff, roughness: 1 });
@@ -91,7 +91,7 @@ export class MazeRenderer {
         if (!this.#isOpen(col, row)) continue;
         const { x, z } = maze.cellToWorld(col, row);
         dummy.position.set(x, maze.ceilingAt(col, row), z);
-        dummy.rotation.set(Math.PI / 2, 0, 0); // normale vers le bas
+        dummy.rotation.set(Math.PI / 2, 0, 0); // normal facing down
         dummy.updateMatrix();
         ceil.setMatrixAt(ci++, dummy.matrix);
       }
@@ -100,10 +100,10 @@ export class MazeRenderer {
     ceil.instanceMatrix.needsUpdate = true;
     this.group.add(ceil);
 
-    // --- Risers : comblent les marches de plafond entre cellules ouvertes ---
+    // --- Risers: fill the ceiling steps between open cells ---
     this.#buildRisers();
 
-    // --- Plateformes basses ---
+    // --- Low platforms ---
     const blockMat = new THREE.MeshStandardMaterial({ color: 0x14141c, roughness: 0.9 });
     this.disposables.push(blockMat);
     for (const [key, h] of maze.lowBlocks) {
@@ -118,7 +118,7 @@ export class MazeRenderer {
       this.disposables.push(geo);
     }
 
-    // --- Lumières (salle de spawn éclairée, lueur de la cathédrale) ---
+    // --- Lights (lit spawn room, cathedral glow) ---
     for (const L of maze.lights) {
       const { x, z } = maze.cellToWorld(L.col, L.row);
       const light = new THREE.PointLight(L.color, L.intensity, L.dist, L.decay ?? 1.5);
@@ -126,10 +126,10 @@ export class MazeRenderer {
       this.group.add(light);
     }
 
-    // --- Panneau de contrôles peint sur le mur (si défini) ---
+    // --- Controls panel painted on the wall (if defined) ---
     if (maze.controlsWall) this.#buildControlsWall();
 
-    // --- Sortie (uniquement les niveaux de fin) : portail OU trou dans le sol ---
+    // --- Exit (end levels only): portal OR hole in the floor ---
     if (this.opts.portal) {
       if (this.opts.exitKind === 'hole') this.#buildHole();
       else this.#buildPortal();
@@ -153,7 +153,7 @@ export class MazeRenderer {
       const geo = new THREE.PlaneGeometry(CELL, hi - lo);
       const m = new THREE.Mesh(geo, mat);
       m.position.set((a.x + b.x) / 2, (lo + hi) / 2, (a.z + b.z) / 2);
-      if (axis === 'x') m.rotation.y = Math.PI / 2; // marche le long de l'axe X
+      if (axis === 'x') m.rotation.y = Math.PI / 2; // step along the X axis
       this.group.add(m);
       this.disposables.push(geo);
       void half;
@@ -182,15 +182,15 @@ export class MazeRenderer {
     const panel = new THREE.Mesh(geo, mat);
     const { x, z } = maze.cellToWorld(cw.col, cw.row);
     panel.position.set(x - CELL / 2 + 0.06, 2.5, z);
-    panel.rotation.y = Math.PI / 2; // normale vers +X (intérieur de la salle, côté est)
+    panel.rotation.y = Math.PI / 2; // normal facing +X (inside the room, east side)
     this.group.add(panel);
     this.disposables.push(tex, mat, geo);
   }
 
-  // Portail magique à la sortie. Deux états :
-  //  - VERROUILLÉ (rouge, tournoiement lent, cœur sombre) tant que toutes les clés PEPE
-  //    ne sont pas ramassées ;
-  //  - ACTIF (vert éclatant, disque de vortex, halo intense) une fois débloqué.
+  // Magic portal at the exit. Two states:
+  //  - LOCKED (red, slow spin, dark core) while not all PEPE keys
+  //    have been collected;
+  //  - ACTIVE (bright green, vortex disc, intense halo) once unlocked.
   #buildPortal() {
     const maze = this.maze;
     const exitPos = maze.cellToWorld(maze.exit.col, maze.exit.row);
@@ -202,7 +202,7 @@ export class MazeRenderer {
     this.LOCKED_COLOR = new THREE.Color(0xff2a2a);
     this.ACTIVE_COLOR = new THREE.Color(0x39ff88);
 
-    // Deux anneaux concentriques qui tournent en sens inverse.
+    // Two concentric rings rotating in opposite directions.
     const ringMat = new THREE.MeshStandardMaterial({
       color: this.LOCKED_COLOR.clone(),
       emissive: this.LOCKED_COLOR.clone(),
@@ -220,7 +220,7 @@ export class MazeRenderer {
     ring2.position.y = y;
     portalGroup.add(ring2);
 
-    // Disque de « vortex » au centre (transparent, additif), face au joueur via lookAt.
+    // "Vortex" disc at the center (transparent, additive), facing the player via lookAt.
     const vortexMat = new THREE.MeshBasicMaterial({
       color: this.LOCKED_COLOR.clone(),
       transparent: true,
@@ -248,9 +248,9 @@ export class MazeRenderer {
     this.disposables.push(ringGeo, ring2Geo, vortexGeo, ringMat, vortexMat);
   }
 
-  // Trou dans le sol = sortie du niveau 1 (transition « chute » vers la forêt). Ouverture
-  // noire encastrée, puits sombre descendant + lueur au fond qui s'allume une fois les clés
-  // réunies. Réutilise l'API setPortalActive/update via des refs holeXxx.
+  // Hole in the floor = level 1 exit ("fall" transition into the forest). Recessed
+  // black opening, dark descending shaft + glow at the bottom that lights up once the keys
+  // are all collected. Reuses the setPortalActive/update API via holeXxx refs.
   #buildHole() {
     const maze = this.maze;
     const exitPos = maze.cellToWorld(maze.exit.col, maze.exit.row);
@@ -260,20 +260,20 @@ export class MazeRenderer {
     const R = CELL * 0.42;
     const depth = 14;
 
-    // Ouverture noire pure au ras du sol (lue comme un trou dans le noir).
+    // Pure black opening flush with the floor (reads as a hole in the dark).
     const openingMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
     const opening = new THREE.Mesh(new THREE.CircleGeometry(R, 40), openingMat);
     opening.rotation.x = -Math.PI / 2;
     opening.position.y = 0.04;
     group.add(opening);
 
-    // Paroi intérieure du puits (visible quand on s'approche du bord).
+    // Inner wall of the shaft (visible when approaching the edge).
     const wallMat = new THREE.MeshStandardMaterial({ color: 0x090a0d, roughness: 1, side: THREE.DoubleSide });
     const wall = new THREE.Mesh(new THREE.CylinderGeometry(R, R * 0.7, depth, 32, 1, true), wallMat);
     wall.position.y = 0.04 - depth / 2;
     group.add(wall);
 
-    // Fond + lueur qui s'allume à l'activation.
+    // Bottom + glow that lights up on activation.
     this.holeColorLocked = new THREE.Color(0x220000);
     this.holeColorActive = new THREE.Color(0x39ff88);
     this.holeGlowMat = new THREE.MeshBasicMaterial({ color: this.holeColorLocked.clone(), transparent: true, opacity: 0.9 });
@@ -282,27 +282,27 @@ export class MazeRenderer {
     bottom.position.y = 0.04 - depth;
     group.add(bottom);
 
-    // Rebord (anneau) autour de l'ouverture.
+    // Rim (ring) around the opening.
     this.holeRimMat = new THREE.MeshStandardMaterial({ color: 0x14141a, emissive: this.holeColorLocked.clone(), emissiveIntensity: 0.4, roughness: 0.7 });
     const rim = new THREE.Mesh(new THREE.TorusGeometry(R, 0.18, 10, 44), this.holeRimMat);
     rim.rotation.x = Math.PI / 2;
     rim.position.y = 0.06;
     group.add(rim);
 
-    // Lumière montant du puits.
+    // Light rising from the shaft.
     this.holeLight = new THREE.PointLight(this.holeColorLocked.clone(), 0.6, CELL * 5, 1.8);
     this.holeLight.position.set(0, 0.5, 0);
     group.add(this.holeLight);
 
     this.group.add(group);
     this.holeGroup = group;
-    // Les matériaux sont suivis ici ; les géométries sont libérées par le traverse de dispose().
+    // Materials are tracked here; geometries are freed by dispose()'s traverse.
     this.disposables.push(openingMat, wallMat, this.holeGlowMat, this.holeRimMat);
   }
 
-  // Bascule verrouillé ↔ actif (appelé quand toutes les clés PEPE sont récupérées).
+  // Toggles locked <-> active (called when all PEPE keys are collected).
   setPortalActive(active) {
-    // Cas « trou » (niveau 1) : allume la lueur du puits.
+    // "Hole" case (level 1): lights up the shaft's glow.
     if (this.holeGroup) {
       const c = active ? this.holeColorActive : this.holeColorLocked;
       this.holeGlowMat.color.copy(c);

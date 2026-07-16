@@ -1,5 +1,5 @@
-// Page « How it works » : histoire, contrôles (avec l'inversion gauche/droite volontaire)
-// et mécaniques (santé mentale, clés PEPE → portail, boussole payante, lampe + planque, Ansem).
+// "How it works" page: story, controls (with the intentional left/right swap)
+// and mechanics (mental health, PEPE keys -> portal, gated compass, flashlight + hiding, Ansem).
 
 export class HowItWorks {
   constructor(container, { onBack, onPlay }) {

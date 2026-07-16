@@ -1,10 +1,10 @@
-// Limiteur de débit en mémoire (fenêtre fixe par IP). Sans dépendance externe.
-// NB : mémoire par instance - pour plusieurs instances derrière un load-balancer, il faudrait
-// un store partagé (Redis). Suffisant pour brider les floods sur une instance unique.
+// In-memory rate limiter (fixed window per IP). No external dependency.
+// NB: per-instance memory, for multiple instances behind a load balancer you'd need
+// a shared store (Redis). Sufficient to throttle floods on a single instance.
 export function rateLimit({ windowMs = 60_000, max = 40 } = {}) {
   const hits = new Map(); // ip -> { count, reset }
 
-  // Nettoyage périodique des entrées expirées (ne maintient pas le process en vie).
+  // Periodic cleanup of expired entries (doesn't keep the process alive).
   const timer = setInterval(() => {
     const now = Date.now();
     for (const [ip, e] of hits) if (now > e.reset) hits.delete(ip);

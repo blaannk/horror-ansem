@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 import { CELL, EYE_HEIGHT, LOS_BOOST, MONSTER_CREEP_SPEED } from '../config.js';
 
-// Ansem - antagoniste affiché en billboard (THREE.Sprite, photo /ansem.png) qui fait
-// toujours face au joueur et reste lumineux dans le noir.
-// Modes :
-//  - 'none'   : caché, inerte (niveaux sans monstre).
-//  - 'reveal' : visible mais immobile (révélation scriptée ; position pilotée par le niveau).
-//  - 'chase'  : poursuite BFS ; accélère quand il a le joueur dans sa LIGNE DE VUE + cône avant.
+// Ansem - antagonist displayed as a billboard (THREE.Sprite, photo /ansem.png) that always
+// faces the player and stays glowing in the dark.
+// Modes:
+//  - 'none'   : hidden, inert (levels without a monster).
+//  - 'reveal' : visible but motionless (scripted reveal, position driven by the level).
+//  - 'chase'  : BFS pursuit, speeds up when it has the player in its LINE OF SIGHT plus forward cone.
 
 const FACE_Y = EYE_HEIGHT + 0.15;
 const FACE_H = 3.0;
@@ -23,19 +23,19 @@ export class Monster {
     this.moving = false;
     this.mode = 'none';
     this.speedMult = 1;
-    this.rushMult = 1; // multiplicateur de vitesse (charge de BONK dans la forêt)
-    this.walkPhase = 0; // cycle de marche de BONK (animation des membres)
+    this.rushMult = 1; // speed multiplier (BONK's charge in the forest)
+    this.walkPhase = 0; // BONK's walk cycle (limb animation)
     this.faceDir = 0;
     this.sees = false;
-    this.detectRadius = 9999; // réglé par Game selon la santé mentale
-    this.lastKnown = null; // dernière position connue du joueur (mode chase)
-    this.wanderTarget = null; // cible d'errance quand le joueur est perdu
-    this.hunting = false; // true tant qu'il te traque activement (pas en errance)
-    this.hidden = false; // true quand le joueur est tapi dans le noir (piloté par Game)
-    this.lit = false; // true quand la lampe du joueur est allumée → il se trahit (piloté par Game)
-    this.fleeing = false; // true quand le joueur est à un feu de camp → BONK fuit (piloté par Game)
-    this._wasFleeing = false; // état de fuite au tick précédent (pour réagir au changement)
-    this.fleeTarget = null; // cible de fuite (cellule éloignée, dans la forêt)
+    this.detectRadius = 9999; // set by Game based on sanity
+    this.lastKnown = null; // last known player position (chase mode)
+    this.wanderTarget = null; // wander target when the player is lost
+    this.hunting = false; // true while it's actively hunting you (not wandering)
+    this.hidden = false; // true when the player is crouched in the dark (driven by Game)
+    this.lit = false; // true when the player's flashlight is on -> gives them away (driven by Game)
+    this.fleeing = false; // true when the player is at a campfire -> BONK flees (driven by Game)
+    this._wasFleeing = false; // fleeing state on the previous tick (to react to changes)
+    this.fleeTarget = null; // flee target (a distant cell, in the forest)
 
     this.mesh = this.#buildMesh();
     this.position = this.mesh.position;
@@ -46,7 +46,7 @@ export class Monster {
   #buildMesh() {
     const g = new THREE.Group();
 
-    // Skin ANSEM (billboard photo) - niveaux crypto.
+    // ANSEM skin (photo billboard) - crypto levels.
     this.ansemGroup = new THREE.Group();
     const tex = new THREE.TextureLoader().load('/monster.png');
     tex.colorSpace = THREE.SRGBColorSpace;
@@ -62,7 +62,7 @@ export class Monster {
     this.ansemGroup.add(this.glow);
     g.add(this.ansemGroup);
 
-    // Skin BONK (créature 3D) - niveau forêt ; caché par défaut.
+    // BONK skin (3D creature) - forest level; hidden by default.
     this.bonkGroup = this.#buildBonk();
     this.bonkGroup.visible = false;
     g.add(this.bonkGroup);
@@ -71,9 +71,9 @@ export class Monster {
     return g;
   }
 
-  // Créature BONK : le shiba d'Ansem CORROMPU - carcasse QUADRUPÈDE émaciée, poils orange
-  // sale, côtes saillantes, tête basse à gueule décrochée + grands crocs, orbites creuses
-  // luminescentes, collier + médaillon, sang. Démarche saccadée (animée dans update).
+  // BONK creature: Ansem's CORRUPTED shiba - emaciated QUADRUPED carcass, dirty orange
+  // fur, jutting ribs, low head with an unhinged jaw + large fangs, hollow glowing
+  // eye sockets, collar + tag, blood. Jerky gait (animated in update).
   #buildBonk() {
     const g = new THREE.Group();
     const skin = new THREE.MeshStandardMaterial({ color: 0xa8531a, emissive: 0x1e0c00, emissiveIntensity: 0.35, roughness: 0.95 });
@@ -81,9 +81,9 @@ export class Monster {
     const tooth = new THREE.MeshStandardMaterial({ color: 0xe6dcc4, roughness: 0.6 });
     this.bonkLegs = [];
     const cyl = (rt, rb, h, mat = skin) => new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, 7), mat);
-    const backY = 1.55; // hauteur du dos (chien)
+    const backY = 1.55; // back height (dog)
 
-    // --- Torse émacié + masses épaule/hanche ---
+    // --- Emaciated torso + shoulder/hip masses ---
     const torso = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.66, 2.1), skin);
     torso.position.set(0, backY, 0);
     g.add(torso);
@@ -93,7 +93,7 @@ export class Monster {
     const rump = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.74, 0.7), skin);
     rump.position.set(0, backY, -0.85);
     g.add(rump);
-    // Côtes saillantes (demi-arcs).
+    // Jutting ribs (half-arcs).
     for (let i = 0; i < 5; i++) {
       const rib = new THREE.Mesh(new THREE.TorusGeometry(0.33, 0.04, 6, 12, Math.PI), bone);
       rib.rotation.z = Math.PI / 2;
@@ -102,7 +102,7 @@ export class Monster {
       g.add(rib);
     }
 
-    // --- 4 pattes articulées (hanche → genou → patte), décharnées et digitigrades. ---
+    // --- 4 jointed legs (hip -> knee -> paw), gaunt and digitigrade. ---
     const legAt = (sx, sz, front) => {
       const hip = new THREE.Group();
       hip.position.set(sx * 0.3, backY - 0.2, sz);
@@ -128,7 +128,7 @@ export class Monster {
     legAt(-1, -0.8, false);
     legAt(1, -0.8, false);
 
-    // --- Cou + TÊTE basse en avant (dans un groupe animé : tremblements). ---
+    // --- Neck + HEAD low and forward (in an animated group: tremors). ---
     const neck = cyl(0.15, 0.19, 0.7);
     neck.position.set(0, backY - 0.05, 1.3);
     neck.rotation.x = 1.1;
@@ -146,7 +146,7 @@ export class Monster {
       ear.rotation.x = -0.2;
       this.bonkHead.add(ear);
     }
-    // Gueule décrochée (mâchoire pendante) + grands crocs haut/bas.
+    // Unhinged mouth (dangling jaw) + large upper/lower fangs.
     const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.16, 0.5), skin);
     jaw.position.set(0, -0.34, 0.48);
     jaw.rotation.x = 0.55;
@@ -161,7 +161,7 @@ export class Monster {
       dn.position.set(x, -0.28, 0.7);
       this.bonkHead.add(dn);
     }
-    // Orbites creuses luminescentes (pâles) enfoncées.
+    // Hollow, sunken glowing (pale) eye sockets.
     this.bonkEyeMat = new THREE.MeshBasicMaterial({ color: 0xfff2d0, toneMapped: false });
     for (const sx of [-1, 1]) {
       const eye = new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 10), this.bonkEyeMat);
@@ -173,14 +173,14 @@ export class Monster {
     this.bonkEyeLight.position.set(0, backY - 0.22, 2.0);
     g.add(this.bonkEyeLight);
 
-    // Sang à la gueule.
+    // Blood at the mouth.
     const blood = new THREE.MeshStandardMaterial({ color: 0x3a0000, emissive: 0x7a0000, emissiveIntensity: 0.6, roughness: 0.5 });
     for (const [x, y, z, h] of [[0, backY - 0.72, 2.0, 0.4], [-0.12, backY - 0.78, 1.95, 0.3]]) {
       const drip = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.01, h, 5), blood);
       drip.position.set(x, y, z);
       g.add(drip);
     }
-    // Collier + médaillon BONK.
+    // BONK collar + tag.
     const collar = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.045, 8, 16), new THREE.MeshStandardMaterial({ color: 0x120a06, roughness: 0.7 }));
     collar.rotation.x = 1.1;
     collar.position.set(0, backY - 0.08, 1.3);
@@ -188,7 +188,7 @@ export class Monster {
     const tag = new THREE.Mesh(new THREE.CircleGeometry(0.1, 14), new THREE.MeshStandardMaterial({ color: 0xd88a2a, emissive: 0x3a2000, emissiveIntensity: 0.5, roughness: 0.5, side: THREE.DoubleSide }));
     tag.position.set(0, backY - 0.42, 1.5);
     g.add(tag);
-    // Queue basse pendante.
+    // Low, dangling tail.
     const tail = cyl(0.055, 0.02, 1.0);
     tail.position.set(0, backY - 0.05, -1.35);
     tail.rotation.x = -0.5;
@@ -198,7 +198,7 @@ export class Monster {
     return g;
   }
 
-  // Choisit l'apparence du monstre : 'ansem' (billboard) ou 'bonk' (créature 3D).
+  // Chooses the monster's appearance: 'ansem' (billboard) or 'bonk' (3D creature).
   setSkin(skin) {
     this.skin = skin;
     if (this.ansemGroup) this.ansemGroup.visible = skin === 'ansem';
@@ -233,12 +233,12 @@ export class Monster {
     return Math.hypot(point.x - this.position.x, point.z - this.position.z);
   }
 
-  // Le monstre te voit-il ? (ligne de vue libre + à portée visuelle)
+  // Does the monster see you? (clear line of sight + within visual range)
   #senses(playerCell, dist) {
     return dist <= SEE_DIST && this.maze.hasLineOfSight(this.cell, playerCell);
   }
 
-  // Cellule de fuite : loin du joueur (BONK bat en retraite dans la forêt près d'un feu).
+  // Flee cell: far from the player (BONK retreats into the forest near a fire).
   #chooseFlee(playerCell) {
     const far = (a, b) => Math.abs(a.col - b.col) + Math.abs(a.row - b.row);
     const reached = this.fleeTarget && this.cell.col === this.fleeTarget.col && this.cell.row === this.fleeTarget.row;
@@ -258,10 +258,10 @@ export class Monster {
     return this.fleeTarget;
   }
 
-  // Choisit la cible de déplacement (fuite / traque directe / dernière position connue / errance).
+  // Chooses the movement target (flee / direct hunt / last known position / wander).
   #chooseTarget(playerCell, detected) {
-    if (this.fleeing) return this.#chooseFlee(playerCell); // joueur à un feu → on s'éloigne
-    if (this.mode === 'creep') return playerCell; // approche directe lente
+    if (this.fleeing) return this.#chooseFlee(playerCell); // player at a fire -> move away
+    if (this.mode === 'creep') return playerCell; // slow direct approach
     if (detected) {
       this.lastKnown = playerCell;
       this.wanderTarget = null;
@@ -278,37 +278,37 @@ export class Monster {
   }
 
   update(dt, playerPos, elapsed) {
-    // Animations passives (toujours, tant que visible).
+    // Passive animations (always, as long as visible).
     if (this.mesh.visible) {
       this.position.y = Math.sin(elapsed * 2.2) * 0.12;
       if (this.skin === 'bonk') {
-        this.mesh.rotation.y = this.faceDir; // la créature s'oriente vers son déplacement
+        this.mesh.rotation.y = this.faceDir; // the creature faces its movement direction
         const f = 0.72 + 0.28 * Math.sin(elapsed * 7);
-        if (this.bonkEyeMat) this.bonkEyeMat.color.setRGB(f, f * 0.95, f * 0.82); // lueur pâle « vide »
+        if (this.bonkEyeMat) this.bonkEyeMat.color.setRGB(f, f * 0.95, f * 0.82); // pale "empty" glow
         if (this.bonkEyeLight) this.bonkEyeLight.intensity = 1.5 + Math.sin(elapsed * 6) * 0.6 + (this.sees ? 1.8 : 0);
-        // Démarche QUADRUPÈDE en trot diagonal + à-coups (saccadé) + tremblements de la tête.
+        // QUADRUPED gait: diagonal trot + jerky motion + head tremors.
         const moving = this.moving;
         this.walkPhase += dt * (moving ? 8 + this.rushMult * 3 : 1.5);
         const swing = moving ? 0.6 : 0.05;
         for (const l of this.bonkLegs || []) {
-          // Paires diagonales : (avant-droite + arrière-gauche) opposées à (avant-gauche + arrière-droite).
+          // Diagonal pairs: (front-right + back-left) opposite (front-left + back-right).
           const diag = l.front === l.side > 0 ? 0 : Math.PI;
           const s = Math.sin(this.walkPhase + diag);
           l.root.rotation.x = s * swing;
-          l.joint.rotation.x = -Math.abs(s) * swing * 0.8; // le genou plie
+          l.joint.rotation.x = -Math.abs(s) * swing * 0.8; // the knee bends
         }
-        // Secousses saccadées du corps + tremblements/à-coups de la tête (inquiétant).
+        // Jerky body shudders + head tremors/twitches (unsettling).
         this.mesh.rotation.z = Math.sin(this.walkPhase * 3.3) * (moving ? 0.03 : 0.012) + Math.sin(elapsed * 17) * 0.008;
         if (this.bonkHead) {
           this.bonkHead.rotation.set(Math.sin(elapsed * 13) * 0.06, Math.sin(elapsed * 9) * 0.09, Math.sin(elapsed * 23) * 0.05);
         }
       } else {
-        this.mesh.rotation.y = 0; // le sprite billboard s'oriente seul
+        this.mesh.rotation.y = 0; // the billboard sprite orients itself
         if (this.glow) this.glow.intensity = 2.0 + Math.sin(elapsed * 5) * 0.9;
       }
     }
 
-    // 'creep' = approche lente (pré-poursuite) ; 'chase' = vraie poursuite.
+    // 'creep' = slow approach (pre-chase); 'chase' = actual pursuit.
     if (this.mode !== 'chase' && this.mode !== 'creep') {
       this.moving = false;
       this.sees = false;
@@ -320,21 +320,21 @@ export class Monster {
     this.awake = true;
     const playerCell = this.maze.worldToCell(playerPos.x, playerPos.z);
     const dist = this.distanceTo(playerPos);
-    // Joueur tapi dans le noir (lampe éteinte + immobile dans un coin) : Ansem ne le
-    // perçoit plus → il « passe devant » lui (aucune vue, aucune détection).
-    // 'creep' (approche scriptée) ignore la furtivité.
+    // Player crouched in the dark (flashlight off + motionless in a corner): Ansem no longer
+    // perceives them -> he "walks right past" (no sight, no detection).
+    // 'creep' (scripted approach) ignores stealth.
     this.sees = this.mode === 'chase' && !this.hidden && this.#senses(playerCell, dist);
-    // Détection (sait où tu es) : dans le rayon (santé mentale) OU vue directe.
+    // Detection (knows where you are): within radius (sanity) OR direct sight.
     let detected = this.mode === 'chase' ? dist <= this.detectRadius || this.sees : true;
-    // Lampe allumée = tu te TRAHIS : il te repère toujours (à portée) et vient te chercher,
-    // même tapi dans un coin. Seule la lampe ÉTEINTE dans un coin te cache.
+    // Flashlight on = you GIVE YOURSELF AWAY: he always spots you (in range) and comes after you,
+    // even crouched in a corner. Only an OFF flashlight in a corner hides you.
     if (this.lit && this.mode === 'chase' && dist <= SEE_DIST) detected = true;
     if (this.hidden && this.mode === 'chase') detected = false;
-    this.hunting = detected && !this.fleeing; // false s'il fuit (feu) ou t'a perdu → coupe le bruit de chasse
+    this.hunting = detected && !this.fleeing; // false if fleeing (fire) or lost you -> cuts the hunt sound
 
-    // Réaction IMMÉDIATE au changement d'état (le joueur atteint OU quitte un feu) : on jette le
-    // chemin courant et on recalcule tout de suite → il fait aussitôt demi-tour pour se cacher
-    // (ou repart à ta poursuite dès que tu quittes le feu).
+    // IMMEDIATE reaction to a state change (the player reaches OR leaves a fire): drop the
+    // current path and recompute right away -> he instantly turns back to hide
+    // (or resumes the chase as soon as you leave the fire).
     if (this.fleeing !== this._wasFleeing) {
       this._wasFleeing = this.fleeing;
       this.repathTimer = 0;
@@ -349,17 +349,17 @@ export class Monster {
     }
 
     const speedNow = () => {
-      if (this.mode === 'creep') return MONSTER_CREEP_SPEED; // lent
-      // Vitesse = base × santé mentale × charge (rush) × boost de ligne de vue.
+      if (this.mode === 'creep') return MONSTER_CREEP_SPEED; // slow
+      // Speed = base x sanity x charge (rush) x line-of-sight boost.
       let sp = cfg.monsterSpeed * this.speedMult * this.rushMult;
       if (this.sees) sp *= LOS_BOOST;
       return sp;
     };
 
     let isMoving = false;
-    // APPROCHE FINALE : quand il te traque et a une ligne de vue directe à faible distance, il
-    // fonce DROIT sur ta position réelle (les chemins visent le centre des cellules → sans ça il
-    // s'arrête au milieu et ne t'atteint jamais dans un coin). Ignoré s'il fuit ou si tu es caché.
+    // FINAL APPROACH: when it's hunting you and has a direct line of sight at close range, it
+    // charges STRAIGHT at your actual position (paths target cell centers -> without this it
+    // would stop mid-cell and never catch you in a corner). Ignored if fleeing or if you're hidden.
     const closingIn =
       !this.fleeing &&
       !this.hidden &&
@@ -395,7 +395,7 @@ export class Monster {
     }
     this.moving = isMoving;
 
-    // La lueur d'Ansem s'intensifie quand il te voit (skin ansem uniquement).
+    // Ansem's glow intensifies when he sees you (ansem skin only).
     if (this.skin === 'ansem' && this.glow) this.glow.intensity = (this.sees ? 3.4 : 2.0) + Math.sin(elapsed * 6) * 0.8;
   }
 }

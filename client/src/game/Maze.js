@@ -1,11 +1,11 @@
 import { CELL } from '../config.js';
 import { CEIL_DEFAULT } from './mapData.js';
 
-// Labyrinthe sur grille (1 = mur, 0 = passage), rectangulaire cols × rows.
-// Deux modes :
-//  - FIXE : spec.areas/pillars/blocks/doors (layouts dessinés à la main).
-//  - PROCÉDURAL : spec.generate = { cols, rows, ceil, withMonster, headStart }
-//    (recursive backtracker ; spawn/exit = extrémités du diamètre via double BFS).
+// Grid-based maze (1 = wall, 0 = passage), rectangular cols x rows.
+// Two modes:
+//  - FIXED: spec.areas/pillars/blocks/doors (hand-drawn layouts).
+//  - PROCEDURAL: spec.generate = { cols, rows, ceil, withMonster, headStart }
+//    (recursive backtracker; spawn/exit = diameter endpoints via double BFS).
 
 const DIRS = [
   [0, -2],
@@ -25,9 +25,9 @@ export class Maze {
     else this.#initFixed(spec);
   }
 
-  // Grande map procédurale AVEC une salle de terreur scellée tamponnée en bas (un seul
-  // maze → aucun chargement quand la porte ouest s'ouvre). Couloir DROIT en impasse
-  // (Ansem du screamer) ; porte GAUCHE fermée donnant sur le labyrinthe.
+  // Large procedural map WITH a sealed terror room stamped at the bottom (a single
+  // maze -> no loading when the west door opens). RIGHT corridor is a dead end
+  // (Ansem's screamer); LEFT door is closed and leads into the maze.
   #initEscape(g) {
     const N = g.size % 2 === 0 ? g.size + 1 : g.size;
     this.cols = N;
@@ -40,28 +40,28 @@ export class Maze {
     this.controlsWall = null;
     this.areas = [];
 
-    this.grid = this.#generate(); // labyrinthe parfait
-    this.#braid(0.18); // ouvre des murs → BOUCLES (plusieurs routes, plus parfait)
-    this.#carveEscapeRooms(N); // PIÈCES ouvertes (avec plafonds plus hauts)
+    this.grid = this.#generate(); // perfect maze
+    this.#braid(0.18); // opens up walls -> LOOPS (multiple routes, less perfect)
+    this.#carveEscapeRooms(N); // open ROOMS (with taller ceilings)
 
     const cx = (N - 1) / 2;
-    // --- Salle de terreur scellée (boîte) en bas-centre ---
+    // --- Sealed terror room (box) at bottom-center ---
     const bb = { r0: N - 7, r1: N - 1, c0: cx - 3, c1: cx + 6 };
     for (let r = bb.r0; r <= bb.r1; r++)
       for (let c = bb.c0; c <= bb.c1; c++) if (this.inBounds(c, r)) this.grid[r][c] = 1;
-    for (let r = N - 6; r <= N - 2; r++) for (let c = cx - 2; c <= cx + 2; c++) this.grid[r][c] = 0; // salle
-    for (let c = cx + 3; c <= cx + 5; c++) this.grid[N - 4][c] = 0; // impasse droite (Ansem)
+    for (let r = N - 6; r <= N - 2; r++) for (let c = cx - 2; c <= cx + 2; c++) this.grid[r][c] = 0; // room
+    for (let c = cx + 3; c <= cx + 5; c++) this.grid[N - 4][c] = 0; // right dead end (Ansem)
 
     const doorCol = cx - 3;
     const doorRow = N - 4;
-    this.grid[doorRow][doorCol] = 1; // porte gauche FERMÉE
+    this.grid[doorRow][doorCol] = 1; // left door CLOSED
     this.doors.add(`${doorCol},${doorRow}`);
 
-    // --- Antichambre ouverte 5×3 juste à l'ouest de la porte (hors boîte) :
-    //     elle recouvre des couloirs du labyrinthe → PLUSIEURS directions dès la porte. ---
+    // --- Open 5x3 antechamber just west of the door (outside the box):
+    //     it overlaps maze corridors -> SEVERAL directions right from the door. ---
     for (let r = N - 6; r <= N - 4; r++) for (let c = cx - 8; c <= cx - 4; c++) if (this.inBounds(c, r)) this.grid[r][c] = 0;
     this.areas.push({ x0: cx - 8, y0: N - 6, x1: cx - 4, y1: N - 2, ceil: g.roomCeil ?? 7 });
-    // Connecteur vertical garanti vers le corps principal du labyrinthe (colonne impaire).
+    // Guaranteed vertical connector to the main body of the maze (odd column).
     let cc = cx - 6;
     if (cc % 2 === 0) cc -= 1;
     for (let r = N - 4; r >= N - 11 && r >= 1; r--) this.grid[r][cc] = 0;
@@ -78,7 +78,7 @@ export class Maze {
     this.spawn = this.#spawnBehind(this.mazeEntry, this.exit);
   }
 
-  // Ouvre une fraction des murs intérieurs séparant deux couloirs parallèles → boucles.
+  // Opens a fraction of the interior walls separating two parallel corridors -> loops.
   #braid(prob) {
     for (let r = 1; r < this.rows - 1; r++) {
       for (let c = 1; c < this.cols - 1; c++) {
@@ -90,10 +90,10 @@ export class Maze {
     }
   }
 
-  // Quelques pièces ouvertes dans la zone du labyrinthe (au-dessus de la salle de terreur).
+  // A few open rooms in the maze area (above the terror room).
   #carveEscapeRooms(N) {
     const count = 5;
-    const maxRow = N - 9; // garde une marge au-dessus de la boîte de terreur
+    const maxRow = N - 9; // keeps a margin above the terror box
     for (let i = 0; i < count; i++) {
       const rw = 3 + 2 * ((Math.random() * 2) | 0);
       const rh = 3 + 2 * ((Math.random() * 2) | 0);
@@ -107,7 +107,7 @@ export class Maze {
     }
   }
 
-  // Cellule praticable aléatoire (utilisée par l'IA d'errance du monstre).
+  // Random walkable cell (used by the monster's wander AI).
   randomOpenCell() {
     for (let i = 0; i < 200; i++) {
       const col = 1 + ((Math.random() * (this.cols - 2)) | 0);
@@ -117,9 +117,9 @@ export class Maze {
     return { ...this.exit };
   }
 
-  // ---------- Construction depuis une carte ASCII fixe (déterministe, mémorisable) ----------
-  // Légende : '#' mur · '.' sol · 'S' spawn joueur · 'X' sortie (trou) · 'P' clé PEPE ·
-  // 'D' porte (fermée au départ) · 'A' recoin d'Ansem (dead-end + spawn monstre).
+  // ---------- Built from a fixed ASCII map (deterministic, memorable) ----------
+  // Legend: '#' wall, '.' floor, 'S' player spawn, 'X' exit (hole), 'P' PEPE key,
+  // 'D' door (closed at the start), 'A' Ansem's dead end (dead end + monster spawn).
   #initMap(spec) {
     const map = spec.map;
     this.rows = map.length;
@@ -138,14 +138,14 @@ export class Maze {
       const line = map[row];
       for (let col = 0; col < this.cols; col++) {
         const ch = line[col] ?? '#';
-        if (ch === '#') continue; // mur (déjà 1)
+        if (ch === '#') continue; // wall (already 1)
         if (ch === 'D') {
-          // Porte : mur amovible au départ.
+          // Door: removable wall at the start.
           this.doors.add(`${col},${row}`);
           this.escapeDoor = { col, row };
-          continue; // reste 1 (fermée)
+          continue; // stays 1 (closed)
         }
-        grid[row][col] = 0; // toute autre lettre = cellule praticable
+        grid[row][col] = 0; // any other letter = walkable cell
         if (ch === 'S') this.playerSpawn = { col, row };
         else if (ch === 'X') this.exit = { col, row };
         else if (ch === 'P') this.pepeCells.push({ col, row });
@@ -153,11 +153,11 @@ export class Maze {
       }
     }
     this.grid = grid;
-    this.spawn = this.deadEnd; // le monstre se cache au recoin d'Ansem
+    this.spawn = this.deadEnd; // the monster hides at Ansem's dead end
     this.#computeStartYaw(spec.startFacing);
   }
 
-  // ---------- Construction fixe ----------
+  // ---------- Fixed construction ----------
   #initFixed(spec) {
     this.cols = spec.cols;
     this.rows = spec.rows;
@@ -178,7 +178,7 @@ export class Maze {
     this.doors = new Set();
     for (const d of spec.doors ?? []) {
       if (this.inBounds(d.col, d.row)) {
-        grid[d.row][d.col] = 1; // fermée = mur au départ
+        grid[d.row][d.col] = 1; // closed = wall at the start
         this.doors.add(`${d.col},${d.row}`);
       }
     }
@@ -196,7 +196,7 @@ export class Maze {
     this.#computeStartYaw(spec.startFacing);
   }
 
-  // ---------- Construction procédurale ----------
+  // ---------- Procedural construction ----------
   #initProcedural(g) {
     this.cols = g.cols % 2 === 0 ? g.cols + 1 : g.cols;
     this.rows = g.rows % 2 === 0 ? g.rows + 1 : g.rows;
@@ -215,7 +215,7 @@ export class Maze {
     this.exit = b;
 
     if (g.withMonster) {
-      this.spawn = a; // le monstre démarre au fond
+      this.spawn = a; // the monster starts at the far end
       const path = this.findPath(a, b);
       const idx = Math.min(g.headStart ?? 4, Math.max(0, path.length - 2));
       this.playerSpawn = path.length ? path[idx] : a;
@@ -272,7 +272,7 @@ export class Maze {
     this.startYaw = Math.atan2(-(b.x - a.x), -(b.z - a.z));
   }
 
-  // ---------- Requêtes ----------
+  // ---------- Queries ----------
   ceilingAt(col, row) {
     for (const a of this.areas) {
       if (col >= a.x0 && col <= a.x1 && row >= a.y0 && row <= a.y1) return a.ceil;
@@ -298,7 +298,7 @@ export class Maze {
     return this.doors.has(`${col},${row}`);
   }
 
-  // Ouvre une porte (devient praticable). Renvoie true si l'état a changé.
+  // Opens a door (becomes walkable). Returns true if the state changed.
   openDoor(col, row) {
     if (!this.isDoor(col, row) || this.grid[row][col] === 0) return false;
     this.grid[row][col] = 0;
@@ -317,7 +317,7 @@ export class Maze {
     return { col: Math.round(x / CELL + halfW), row: Math.round(z / CELL + halfH) };
   }
 
-  // Ligne de vue libre entre deux cellules (échantillonnage sur la grille).
+  // Clear line of sight between two cells (sampled across the grid).
   hasLineOfSight(a, b) {
     const x0 = a.col;
     const y0 = a.row;
@@ -334,8 +334,8 @@ export class Maze {
     return true;
   }
 
-  // Spawn du monstre « derrière » le joueur : à distance moyenne de l'entrée du labyrinthe
-  // ET le plus loin possible de la sortie (donc à l'opposé du chemin de fuite).
+  // Monster spawn "behind" the player: at a medium distance from the maze entrance
+  // AND as far as possible from the exit (so opposite the escape path).
   #spawnBehind(entry, exit) {
     const de = this.#bfs(entry).dist;
     const dx = this.#bfs(exit).dist;
@@ -344,8 +344,8 @@ export class Maze {
     for (let row = 0; row < this.rows; row++) {
       for (let col = 0; col < this.cols; col++) {
         const d = de[row][col];
-        if (d < 6 || d > 14) continue; // gap raisonnable derrière le joueur
-        const score = dx[row][col]; // loin de la sortie = bien derrière
+        if (d < 6 || d > 14) continue; // reasonable gap behind the player
+        const score = dx[row][col]; // far from the exit = well behind
         if (score > bestScore) {
           bestScore = score;
           best = { col, row };

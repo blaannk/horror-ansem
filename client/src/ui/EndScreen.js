@@ -1,6 +1,6 @@
-// Écran de fin de partie : victoire (évasion) ou défaite (capturé).
-// Dans les DEUX cas on enregistre l'avancement au leaderboard (classement par % de progression).
-// Affiche le rang du joueur, son % atteint, ses badges, et le Top 10 par avancement.
+// End of game screen: victory (escape) or defeat (caught).
+// In BOTH cases we record progress to the leaderboard (ranked by % progress).
+// Shows the player's rank, their % reached, their badges, and the Top 10 by progress.
 
 import {
   CHAPTERS,
@@ -25,18 +25,18 @@ export class EndScreen {
     this.onMenu = onMenu;
     this.playerId = getPlayerId();
     this.percent = percentOf(levelReached);
-    this.submitted = false; // garde d'idempotence : un run = UNE seule ligne enregistrée
+    this.submitted = false; // idempotence guard: one run = ONE recorded row only
 
     this.root = document.createElement('div');
     this.root.className = `endscreen ${won ? 'win' : 'lose'}`;
     this.root.innerHTML = this.#html();
-    // Monté sur <body> (pas sur le conteneur du jeu) → position:fixed relative au VRAI viewport,
-    // à l'abri de tout ancêtre transformé/filtré : la fenêtre reste centrée, sans scroll.
+    // Mounted on <body> (not the game container) so position:fixed is relative to the REAL viewport,
+    // safe from any transformed/filtered ancestor: the window stays centered, no scroll.
     document.body.appendChild(this.root);
 
-    // À la sortie de l'écran (rejouer / menu), on enregistre le run une dernière fois si le joueur
-    // n'a pas cliqué « Save my name » - ainsi mort ET victoire sont enregistrées, mais UNE seule
-    // fois (garde `submitted`), sans doublon ni écrasement du pseudo par l'auto-soumission.
+    // On leaving this screen (replay / menu), we record the run one last time if the player
+    // hasn't clicked "Save my name" - this way both death AND victory get recorded, but only ONCE
+    // (the `submitted` guard), with no duplicate and no overwriting of the name by auto-submit.
     this.root.querySelector('[data-replay]').addEventListener('click', () => {
       this.#submitScore();
       this.destroy();
@@ -52,8 +52,8 @@ export class EndScreen {
     this.#loadLeaderboard();
   }
 
-  // Zone d'enregistrement : formulaire de pseudo si un wallet est connecté, sinon une invite
-  // à connecter le wallet (obligatoire pour être classé).
+  // Save area: name form if a wallet is connected, otherwise a prompt
+  // to connect the wallet (required to be ranked).
   #saveAreaHtml() {
     if (isConnected()) {
       return `
@@ -81,7 +81,7 @@ export class EndScreen {
     );
   }
 
-  // Connecte le wallet depuis l'écran de fin, puis enregistre le run.
+  // Connects the wallet from the end screen, then records the run.
   async #connectAndSave(btn) {
     const original = btn.textContent;
     btn.disabled = true;
@@ -89,7 +89,7 @@ export class EndScreen {
     try {
       await connectWallet();
       const area = this.root.querySelector('[data-save-area]');
-      area.innerHTML = this.#saveAreaHtml(); // devient le formulaire de pseudo
+      area.innerHTML = this.#saveAreaHtml(); // becomes the name form
       this.#wireSaveArea();
       this.#submitScore();
     } catch (err) {
@@ -127,9 +127,9 @@ export class EndScreen {
   }
 
   async #submitScore() {
-    if (this.submitted) return; // un seul enregistrement par run (pas de doublon)
-    // Wallet OBLIGATOIRE pour être classé : sans connexion, on n'enregistre rien (le joueur
-    // peut quitter sans sauvegarder). L'invite de connexion reste affichée dans la zone dédiée.
+    if (this.submitted) return; // only one recording per run (no duplicates)
+    // Wallet REQUIRED to be ranked: without a connection, we record nothing (the player
+    // can leave without saving). The connect prompt stays shown in the dedicated area.
     if (!isConnected()) return;
     this.submitted = true;
     const input = this.root.querySelector('input[name="name"]');
@@ -144,7 +144,7 @@ export class EndScreen {
         body: JSON.stringify({
           name,
           time_ms: Math.round(this.timeMs),
-          maze_size: 21, // carte fixe (compat schéma leaderboard)
+          maze_size: 21, // fixed map (leaderboard schema compat)
           difficulty: this.config.difficulty,
           level_reached: this.levelReached,
           player_id: this.playerId,
@@ -154,18 +154,18 @@ export class EndScreen {
         }),
       });
       if (res.status === 409) {
-        // Run déjà soumis (rejeu) : ce n'est pas une erreur réseau, on ne réessaie pas.
+        // Run already submitted (replay): this isn't a network error, don't retry.
         msg.textContent = 'ℹ️ Already saved for this run.';
         this.#loadLeaderboard();
         return;
       }
       if (res.status === 403) {
-        // Run non vérifié (jeton manquant/expiré) : on n'insiste pas (pas de reprise infinie).
+        // Run not verified (missing/expired token): don't retry (avoid infinite retry loop).
         msg.textContent = '⚠️ Run not verified, score not ranked.';
         return;
       }
       if (res.status === 401) {
-        // Session wallet absente/expirée : on réaffiche l'invite de connexion.
+        // Wallet session missing/expired: show the connect prompt again.
         this.submitted = false;
         await disconnectWallet();
         const area = this.root.querySelector('[data-save-area]');
@@ -183,7 +183,7 @@ export class EndScreen {
       }
       this.#loadLeaderboard();
     } catch {
-      this.submitted = false; // échec réseau → on autorise une nouvelle tentative
+      this.submitted = false; // network failure: allow retrying
       msg.textContent = '⚠️ Could not save (server offline?)';
     }
   }
@@ -209,7 +209,7 @@ export class EndScreen {
   }
 }
 
-// Puces de badges (chapitres franchis).
+// Badge chips (chapters cleared).
 export function badgeChips(badgeNums) {
   if (!badgeNums || !badgeNums.length) return '';
   return badgeNums
@@ -221,7 +221,7 @@ export function badgeChips(badgeNums) {
     .join('');
 }
 
-// Une ligne de classement par avancement (rang, pseudo, %, badges, temps).
+// A progress-leaderboard row (rank, name, %, badges, time).
 export function leaderboardRow(s, i, meId) {
   const mine = meId && s.player_id === meId ? ' class="lb-me"' : '';
   return (

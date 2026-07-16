@@ -1,36 +1,36 @@
-// Persistance des scores - backend PostgreSQL.
+// Score persistence, PostgreSQL backend.
 //
-// La connexion est configurée via la variable d'environnement DATABASE_URL,
-// p. ex. : postgres://user:password@localhost:5432/escape_bonk
-// À défaut, on retombe sur une connexion locale par défaut (voir DEFAULT_URL).
+// The connection is configured via the DATABASE_URL environment variable,
+// e.g.: postgres://user:password@localhost:5432/escape_bonk
+// Otherwise, falls back to a default local connection (see DEFAULT_URL).
 
 import pg from 'pg';
 
 const { Pool } = pg;
 
-const DEFAULT_URL = 'postgres://postgres:postgres@localhost:5434/escape_bonk';
+const DEFAULT_URL = 'postgres://postgres:postgres@localhost:5434/escape_ansem';
 const connectionString = process.env.DATABASE_URL || DEFAULT_URL;
 
-// SSL activé si demandé (services managés type Neon/Render/Heroku).
+// SSL enabled if requested (managed services like Neon/Render/Heroku).
 const ssl =
   process.env.DATABASE_SSL === 'true'
     ? { rejectUnauthorized: false }
     : undefined;
 
-// Pool élargi (défaut pg = 10) pour tenir davantage de requêtes concurrentes ; réglable via env.
+// Widened pool (pg default = 10) to handle more concurrent requests; tunable via env.
 const pool = new Pool({ connectionString, ssl, max: Number(process.env.PG_POOL_MAX) || 20 });
 
 pool.on('error', (err) => {
-  console.error('[db] erreur inattendue du pool PostgreSQL :', err.message);
+  console.error('[db] unexpected PostgreSQL pool error:', err.message);
 });
 
 /** @typedef {{ name:string, time_ms:number, maze_size:number, difficulty:string, level_reached?:number, player_id?:string|null, won?:boolean }} ScoreInput */
 
 export const backend = 'postgres';
 
-// Création du schéma. NE PAS bloquer le démarrage si la base est injoignable : on log un
-// avertissement et le serveur reste debout (les routes renverront alors une erreur 500 et
-// le client bascule proprement en mode « hors-ligne »). initDb() est ré-appelable.
+// Schema creation. Do NOT block startup if the database is unreachable: we log a warning
+// and the server stays up (routes will then return a 500 error and the client falls back
+// cleanly to "offline" mode). initDb() can be called again safely.
 export async function initDb() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS scores (
@@ -47,8 +47,8 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_scores_time ON scores(time_ms ASC);
     CREATE INDEX IF NOT EXISTS idx_scores_furthest ON scores(level_reached DESC, time_ms ASC);
     CREATE INDEX IF NOT EXISTS idx_scores_player ON scores(player_id);
-    -- Index fonctionnel pour le classement par avancement (DISTINCT ON sur la clé joueur + tri) :
-    -- évite le full-scan/full-sort sur les chemins les plus chauds (progressBoard, playerRank).
+    -- Functional index for the progress leaderboard (DISTINCT ON on the player key + sort):
+    -- avoids a full-scan/full-sort on the hottest paths (progressBoard, playerRank).
     CREATE INDEX IF NOT EXISTS idx_scores_progress
       ON scores ((COALESCE(player_id, 'name:' || name)), level_reached DESC, won DESC, time_ms ASC);
     CREATE TABLE IF NOT EXISTS global_state (
@@ -59,7 +59,7 @@ export async function initDb() {
     INSERT INTO global_state (id, sanity) VALUES (1, 1)
       ON CONFLICT (id) DO NOTHING;
 
-    -- Historique (points de la courbe affichée sur la page d'accueil).
+    -- History (points for the chart shown on the home page).
     CREATE TABLE IF NOT EXISTS sanity_history (
       id     SERIAL      PRIMARY KEY,
       sanity REAL        NOT NULL,
@@ -67,7 +67,7 @@ export async function initDb() {
     );
     CREATE INDEX IF NOT EXISTS idx_sanity_history_at ON sanity_history(at DESC);
 
-    -- Anti-triche : jetons de run consommés (usage unique, anti-rejeu). Voir runToken.js.
+    -- Anti-cheat: consumed run tokens (single use, anti-replay). See runToken.js.
     CREATE TABLE IF NOT EXISTS used_run_tokens (
       nonce   TEXT        PRIMARY KEY,
       used_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -75,8 +75,8 @@ export async function initDb() {
   `);
 }
 
-// Consomme un nonce de run (usage unique). Renvoie true s'il était neuf (donc valide), false
-// s'il a déjà servi (rejeu → à rejeter). Élague les vieux nonces au passage (best-effort).
+// Consumes a run nonce (single use). Returns true if it was new (thus valid), false
+// if it was already used (replay, should be rejected). Prunes old nonces along the way (best-effort).
 export async function consumeRunNonce(nonce) {
   const { rows } = await pool.query(
     `INSERT INTO used_run_tokens (nonce) VALUES ($1)
@@ -89,8 +89,8 @@ export async function consumeRunNonce(nonce) {
     .catch(() => {});
   return rows.length > 0;
 }
-// initDb() est désormais AWAITÉ au démarrage par index.js (avant app.listen) → le schéma existe
-// avant de servir la moindre requête. Reste ré-appelable et non bloquant si la base est down.
+// initDb() is now AWAITED at startup by index.js (before app.listen), so the schema exists
+// before serving any request. Remains callable again and non-blocking if the database is down.
 
 /** @param {ScoreInput} s */
 export async function addScore(s) {
@@ -103,7 +103,7 @@ export async function addScore(s) {
   return rows[0].id;
 }
 
-// sort : 'furthest' (plus loin dans le jeu, puis le plus rapide) sinon 'time' (le plus rapide).
+// sort: 'furthest' (furthest in the game, then fastest) otherwise 'time' (fastest).
 export async function topScores(difficulty, limit = 10, sort = 'time') {
   const order = sort === 'furthest' ? 'level_reached DESC, time_ms ASC' : 'time_ms ASC';
   const cols = 'id, name, time_ms, maze_size, difficulty, level_reached, won, created_at';
@@ -121,12 +121,12 @@ export async function topScores(difficulty, limit = 10, sort = 'time') {
   return rows;
 }
 
-// Clé de regroupement d'un joueur : son player_id stable, ou à défaut son pseudo.
+// Player grouping key: their stable player_id, or their name otherwise.
 const PLAYER_KEY = `COALESCE(player_id, 'name:' || name)`;
-// Ordre d'avancement : le plus loin, puis vainqueur avant mort, puis le plus rapide.
+// Progress order: furthest first, then win before death, then fastest.
 const PROGRESS_ORDER = 'level_reached DESC, won DESC, time_ms ASC';
 
-// Classement par AVANCEMENT : une seule ligne par joueur (son meilleur run).
+// PROGRESS leaderboard: a single row per player (their best run).
 export async function progressBoard(limit = 10) {
   const { rows } = await pool.query(
     `WITH best AS (
@@ -141,7 +141,7 @@ export async function progressBoard(limit = 10) {
   return rows;
 }
 
-// Rang d'un joueur donné (par player_id) dans le classement d'avancement.
+// Rank of a given player (by player_id) in the progress leaderboard.
 export async function playerRank(playerId) {
   if (!playerId) return null;
   const { rows } = await pool.query(
@@ -164,14 +164,14 @@ export async function playerRank(playerId) {
   return rows[0] ?? null;
 }
 
-// ---------- Santé mentale globale (placeholder pilotable) ----------
+// ---------- Global sanity (drivable placeholder) ----------
 
 export async function getGlobalSanity() {
   const { rows } = await pool.query('SELECT sanity, updated_at FROM global_state WHERE id = 1');
   return rows[0] ?? { sanity: 1, updated_at: null };
 }
 
-// Fixe la valeur globale [0..1] et pousse un point d'historique.
+// Sets the global value [0..1] and pushes a history point.
 export async function setGlobalSanity(v) {
   const sanity = Math.max(0, Math.min(1, Number(v)));
   await pool.query(
@@ -179,7 +179,7 @@ export async function setGlobalSanity(v) {
     [sanity]
   );
   await pool.query('INSERT INTO sanity_history (sanity) VALUES ($1)', [sanity]);
-  // Élagage : on ne conserve que les ~500 points les plus récents (croissance bornée).
+  // Pruning: keep only the ~500 most recent points (bounded growth).
   await pool.query(
     `DELETE FROM sanity_history
      WHERE id NOT IN (SELECT id FROM sanity_history ORDER BY at DESC LIMIT 500)`
@@ -192,7 +192,7 @@ export async function sanityHistory(limit = 50) {
     `SELECT sanity, at FROM sanity_history ORDER BY at DESC LIMIT $1`,
     [limit]
   );
-  return rows.reverse(); // ordre chronologique croissant pour la courbe
+  return rows.reverse(); // ascending chronological order for the chart
 }
 
-console.log(`[db] backend de persistance : ${backend}`);
+console.log(`[db] persistence backend: ${backend}`);

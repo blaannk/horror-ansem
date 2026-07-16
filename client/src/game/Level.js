@@ -2,16 +2,16 @@ import * as THREE from 'three';
 import { CELL } from '../config.js';
 import { MazeRenderer } from './MazeRenderer.js';
 
-// Classe de base d'un niveau. Un niveau possède son `maze`, un `group` THREE (géométrie
-// + décors) ajouté à la scène, et pilote ses propres animations/déclencheurs dans update().
-// Le Game appelle build() → enter() → update(dt) et dispose() à la transition.
+// Base class for a level. A level owns its `maze`, a THREE `group` (geometry
+// + decor) added to the scene, and drives its own animations/triggers in update().
+// The Game calls build() -> enter() -> update(dt), and dispose() on transition.
 
 export class Level {
   constructor() {
     this.group = new THREE.Group();
     this.disposables = [];
     this.maze = null;
-    this.monsterMode = 'none'; // none | reveal | chase (chase est placé/activé par Game)
+    this.monsterMode = 'none'; // none | reveal | chase (chase is placed/activated by Game)
     this.portal = false;
     this.objective = '';
   }
@@ -20,15 +20,15 @@ export class Level {
   enter(/* game */) {}
   update(/* dt, game */) {}
 
-  // Construit le rendu du labyrinthe courant dans le group du niveau.
+  // Builds the current maze's render into the level's group.
   buildMazeRenderer() {
     this.renderer = new MazeRenderer(this.maze, { portal: this.portal, exitKind: this.exitKind });
     this.group.add(this.renderer.group);
     this.disposables.push(this.renderer);
   }
 
-  // Place un panneau/plan plaqué contre le mur voisin d'une cellule, face à l'intérieur.
-  // side : 'north' | 'south' | 'east' | 'west'.
+  // Places a panel/plane flush against a cell's neighboring wall, facing inward.
+  // side: 'north' | 'south' | 'east' | 'west'.
   placeWallDecal(obj, col, row, side, { y = 2.2, offset = 0.06 } = {}) {
     const { x, z } = this.maze.cellToWorld(col, row);
     const h = CELL / 2;

@@ -1,13 +1,13 @@
 import { Router } from 'express';
 import { getGlobalSanity, setGlobalSanity, sanityHistory } from '../db.js';
 
-// Santé mentale GLOBALE, partagée par tous les joueurs et affichée sur la page d'accueil.
-// Placeholder pilotable : la valeur est stockée côté serveur (une ligne) avec un historique
-// pour la courbe. Elle pourra plus tard être pilotée par les résultats de jeu / la crypto.
+// GLOBAL sanity, shared by all players and displayed on the home page.
+// Drivable placeholder: the value is stored server-side (one row) with a history
+// for the chart. It could later be driven by game results / crypto.
 
 const router = Router();
 
-// GET /api/global/sanity - valeur courante + historique (points de la courbe).
+// GET /api/global/sanity - current value + history (chart points).
 router.get('/global/sanity', async (req, res) => {
   const limit = Math.min(Math.max(Number(req.query.limit) || 50, 2), 200);
   try {
@@ -15,14 +15,14 @@ router.get('/global/sanity', async (req, res) => {
     const history = await sanityHistory(limit);
     res.json({ sanity: state.sanity, updated_at: state.updated_at, history });
   } catch (err) {
-    console.error('[global] échec lecture sanity :', err.message);
+    console.error('[global] sanity read failed:', err.message);
     res.status(500).json({ error: 'database error' });
   }
 });
 
-// POST /api/global/sanity  { sanity: 0..1 } - fixe la valeur globale (driver placeholder).
-// ÉCRITURE ADMIN uniquement : exige le header `x-admin-token` == process.env.ADMIN_TOKEN.
-// Sans token configuré, l'écriture est refusée (empêche le défaçage public de l'état partagé).
+// POST /api/global/sanity  { sanity: 0..1 } - sets the global value (placeholder driver).
+// ADMIN WRITE only: requires the `x-admin-token` header == process.env.ADMIN_TOKEN.
+// Without a configured token, the write is refused (prevents public defacement of shared state).
 router.post('/global/sanity', async (req, res) => {
   const token = process.env.ADMIN_TOKEN;
   if (!token || req.get('x-admin-token') !== token) {
@@ -35,7 +35,7 @@ router.post('/global/sanity', async (req, res) => {
     const applied = await setGlobalSanity(v);
     res.status(200).json({ sanity: applied });
   } catch (err) {
-    console.error('[global] échec écriture sanity :', err.message);
+    console.error('[global] sanity write failed:', err.message);
     res.status(500).json({ error: 'database error' });
   }
 });

@@ -7,24 +7,24 @@ import { campfire, lantern, fireplace, chaletTable, chaletChair, chaletBed, dogB
 import { clawMarks } from './props.js';
 
 // =============================================================
-// Level 2 - NIGHT FOREST: on tombe dans le trou du niveau 1 et on se réveille dans un
-// chalet (tableau explicatif + loupiotes). En sortant, BONK surgit derrière avec un cri et
-// nous poursuit dans une forêt très sombre. Seuls les FEUX DE CAMP éclairent : ils forment
-// des zones sûres (BONK fuit tant qu'on y reste, reprend la chasse dès qu'on les quitte).
-// La grille (Maze) sert aux collisions + à l'IA de BONK ; le décor est rendu à la main.
+// Level 2 - NIGHT FOREST: the player falls through the hole from level 1 and wakes up in a
+// cabin (explanatory board + lanterns). On going outside, BONK bursts out from behind with a
+// scream and chases the player through a very dark forest. Only CAMPFIRES provide light: they
+// form safe zones (BONK flees while the player stays in one, resumes the hunt as soon as they leave).
+// The grid (Maze) is used for collisions + BONK's AI; the scenery is rendered by hand.
 // =============================================================
 const COLS = 21;
 const ROWS = 31;
-const SAFE_R = 4.5; // rayon de sécurité autour d'un feu (unités monde ≈ 3-4 m)
-const WALL_H = 5.0; // hauteur sous plafond du chalet (plus haute, avec poutres apparentes)
+const SAFE_R = 4.5; // safety radius around a fire (world units ~= 3-4 m)
+const WALL_H = 5.0; // ceiling height of the cabin (taller, with exposed beams)
 
 export class ForestLevel extends Level {
   build() {
-    this.monsterMode = 'none'; // BONK dort jusqu'à la sortie du chalet
+    this.monsterMode = 'none'; // BONK sleeps until the player exits the cabin
     this.portal = false;
-    this.feasibleSanity = 0.6; // jouable ~60 % de santé mentale (cf. Game)
-    this.ambientScreams = ['scream3']; // cris d'ambiance aléatoires (niveau 2)
-    this.musicTrack = 'forestTheme'; // musique de la forêt
+    this.feasibleSanity = 0.6; // playable at ~60% sanity (see Game)
+    this.ambientScreams = ['scream3']; // random ambient screams (level 2)
+    this.musicTrack = 'forestTheme'; // forest music
     this.objective = 'Wake up…';
 
     const meta = this.#buildMaze();
@@ -40,20 +40,20 @@ export class ForestLevel extends Level {
 
     this.wakeT = 0;
     this.wakeDone = false;
-    this.chaseTriggered = false; // le joueur a franchi la porte
-    this.chasing = false; // BONK actif (après 1 s de répit)
+    this.chaseTriggered = false; // the player has gone through the door
+    this.chasing = false; // BONK active (after a 1s grace period)
     this.chaseDelay = 0;
     this.t = 0;
-    // Poursuite de BONK : ruées rapides intermittentes pendant la traque.
+    // BONK's pursuit: intermittent fast lunges during the hunt.
     this.lunging = false;
     this.lungeT = 0;
     this.lungeGap = 3.5;
   }
 
-  // ---- Grille : chalet en bas, chemin serpentin ouvert vers la sortie en haut, arbres
-  // (murs) parsemés avec des trous pour que BONK puisse se faufiler et fuir dans la forêt.
+  // ---- Grid: cabin at the bottom, winding path open toward the exit at the top, trees
+  // (walls) scattered with gaps so BONK can slip through and flee into the forest.
   #buildMaze() {
-    // RNG à graine FIXE → la forêt (densité des arbres, positions) est IDENTIQUE à chaque partie.
+    // FIXED-seed RNG -> the forest (tree density, positions) is IDENTICAL every playthrough.
     this.rng = mulberry32(0x5eed);
     const cx = Math.floor(COLS / 2);
     const maze = new Maze({
@@ -71,13 +71,13 @@ export class ForestLevel extends Level {
       if (c >= 1 && r >= 1 && c < COLS - 1 && r < ROWS - 1) grid[r][c] = 0;
     };
 
-    // Chalet (bas-centre) + porte au nord - petit (3×3 cellules) comme une vraie cabane.
+    // Cabin (bottom-center) + door to the north - small (3x3 cells) like a real cabin.
     const chalet = { c0: cx - 1, c1: cx + 1, r0: ROWS - 4, r1: ROWS - 2 };
     for (let r = chalet.r0; r <= chalet.r1; r++) for (let c = chalet.c0; c <= chalet.c1; c++) open(c, r);
     const door = { col: cx, row: chalet.r0 - 1 };
     open(door.col, door.row);
 
-    // Chemin serpentin (waypoints → segments droits élargis).
+    // Winding path (waypoints -> widened straight segments).
     const wps = [
       [cx, door.row],
       [cx, ROWS - 9],
@@ -118,8 +118,8 @@ export class ForestLevel extends Level {
       }
     }
 
-    // Forêt PLUS DENSE : seulement ~40 % des murs restants s'ouvrent (→ plus d'arbres,
-    // plus d'occlusion pour que BONK puisse se cacher), le reste = arbres.
+    // DENSER forest: only ~40% of the remaining walls open up (-> more trees,
+    // more occlusion so BONK can hide), the rest = trees.
     for (let r = 1; r < door.row; r++) {
       for (let c = 1; c < COLS - 1; c++) {
         if (grid[r][c] === 0) continue;
@@ -127,8 +127,8 @@ export class ForestLevel extends Level {
       }
     }
 
-    // Feux de camp ESPACÉS le long du chemin (moins nombreux → plus dur ; naturellement
-    // décalés par le zigzag).
+    // Campfires SPACED OUT along the path (fewer of them -> harder; naturally
+    // offset by the zigzag).
     const campfireCells = [];
     const N = 4;
     for (let i = 1; i <= N; i++) {
@@ -153,14 +153,14 @@ export class ForestLevel extends Level {
     return floor;
   }
 
-  // Arbres : un conifère par cellule-mur de la zone forêt (trunk + cône), instanciés.
+  // Trees: one conifer per wall-cell of the forest area (trunk + cone), instanced.
   #buildTrees(meta) {
     const cells = [];
     const cx = Math.floor(COLS / 2);
     for (let r = 0; r < meta.door.row; r++) {
       for (let c = 0; c < COLS; c++) {
         if (!this.maze.isWall(c, r)) continue;
-        if (r <= 6 && c >= cx - 2 && c <= cx + 2) continue; // pas d'arbres dans l'emprise de la mine
+        if (r <= 6 && c >= cx - 2 && c <= cx + 2) continue; // no trees in the mine's footprint
         cells.push({ c, r });
       }
     }
@@ -194,16 +194,16 @@ export class ForestLevel extends Level {
     return g;
   }
 
-  // Intérieur du chalet : sol bois, murs (avec porte au nord), plafond, meubles, loupiotes,
-  // et le TABLEAU explicatif sur un mur.
+  // Cabin interior: wood floor, walls (with door to the north), ceiling, furniture, lanterns,
+  // and the explanatory BOARD on one wall.
   #buildChalet() {
     const ch = this.chalet;
     const wc0 = this.maze.cellToWorld(ch.c0, ch.r0);
     const wc1 = this.maze.cellToWorld(ch.c1, ch.r1);
     const minX = wc0.x - CELL / 2;
     const maxX = wc1.x + CELL / 2;
-    const minZ = wc0.z - CELL / 2; // côté nord (porte)
-    const maxZ = wc1.z + CELL / 2; // côté sud
+    const minZ = wc0.z - CELL / 2; // north side (door)
+    const maxZ = wc1.z + CELL / 2; // south side
     const midX = (minX + maxX) / 2;
     const midZ = (minZ + maxZ) / 2;
     const width = maxX - minX;
@@ -213,7 +213,7 @@ export class ForestLevel extends Level {
     const doorW = CELL;
 
     const g = new THREE.Group();
-    // Bois texturé (lattes + veinage) pour les murs/plafond et le sol.
+    // Textured wood (planks + grain) for the walls/ceiling and floor.
     const wallTex = makeWoodTexture();
     wallTex.repeat.set(2, 1);
     const floorTex = makeWoodTexture();
@@ -236,7 +236,7 @@ export class ForestLevel extends Level {
       m.position.set(x, y, z);
       g.add(m);
     };
-    // Poutres/chambranle en bois foncé (helper réutilisé pour les poutres ET l'encadrement).
+    // Dark wood beams/door frame (helper reused for both the beams AND the door frame).
     const beamMat = new THREE.MeshStandardMaterial({ color: 0x241609, roughness: 0.95 });
     this.track(beamMat);
     const bt = 0.3;
@@ -246,56 +246,56 @@ export class ForestLevel extends Level {
       g.add(m);
     };
 
-    wall(width, WALL_H, t, midX, WALL_H / 2, maxZ); // sud
-    wall(t, WALL_H, depth, minX, WALL_H / 2, midZ); // ouest
-    wall(t, WALL_H, depth, maxX, WALL_H / 2, midZ); // est
-    // Mur nord : deux grands segments de part et d'autre de la cellule-porte.
+    wall(width, WALL_H, t, midX, WALL_H / 2, maxZ); // south
+    wall(t, WALL_H, depth, minX, WALL_H / 2, midZ); // west
+    wall(t, WALL_H, depth, maxX, WALL_H / 2, midZ); // east
+    // North wall: two large segments on either side of the door cell.
     const leftW = doorX - doorW / 2 - minX;
     const rightW = maxX - (doorX + doorW / 2);
     if (leftW > 0.1) wall(leftW, WALL_H, t, (minX + doorX - doorW / 2) / 2, WALL_H / 2, minZ);
     if (rightW > 0.1) wall(rightW, WALL_H, t, (doorX + doorW / 2 + maxX) / 2, WALL_H / 2, minZ);
-    // On réduit le trou de 6 de large en une VRAIE ouverture de porte encadrée (crédible).
-    const openHalf = 1.6; // demi-largeur d'ouverture (~3,2 m)
-    const openH = 3.4; // hauteur d'ouverture
+    // Narrow the 6-wide gap into a REAL framed doorway opening (believable).
+    const openHalf = 1.6; // half-width of the opening (~3.2 m)
+    const openH = 3.4; // opening height
     const sideFill = doorW / 2 - openHalf;
     wall(sideFill, WALL_H, t, doorX - openHalf - sideFill / 2, WALL_H / 2, minZ);
     wall(sideFill, WALL_H, t, doorX + openHalf + sideFill / 2, WALL_H / 2, minZ);
-    wall(openHalf * 2, WALL_H - openH, t, doorX, WALL_H - (WALL_H - openH) / 2, minZ); // linteau
-    // Chambranle bois : montants + linteau, côté intérieur.
+    wall(openHalf * 2, WALL_H - openH, t, doorX, WALL_H - (WALL_H - openH) / 2, minZ); // lintel
+    // Wood door frame: jambs + lintel, on the inside.
     const jz = minZ + 0.14;
     beam(0.18, openH, 0.36, doorX - openHalf, openH / 2, jz);
     beam(0.18, openH, 0.36, doorX + openHalf, openH / 2, jz);
     beam(openHalf * 2 + 0.36, 0.22, 0.36, doorX, openH, jz);
 
-    // Poutres apparentes : montants VERTICAUX aux coins + poutres HORIZONTALES (ceinture haute
-    // + traverses de plafond).
+    // Exposed beams: VERTICAL posts at the corners + HORIZONTAL beams (top belt
+    // + ceiling joists).
     const ix = minX + bt / 2 + 0.05;
     const ax = maxX - bt / 2 - 0.05;
     const iz = minZ + bt / 2 + 0.05;
     const az = maxZ - bt / 2 - 0.05;
-    // Montants verticaux aux 4 coins.
+    // Vertical posts at the 4 corners.
     for (const bx of [ix, ax]) for (const bz of [iz, az]) beam(bt, WALL_H, bt, bx, WALL_H / 2, bz);
-    // Ceinture horizontale sous le plafond (le long des 4 murs).
+    // Horizontal belt below the ceiling (along the 4 walls).
     const topY = WALL_H - bt / 2 - 0.05;
     beam(width, bt, bt, midX, topY, iz);
     beam(width, bt, bt, midX, topY, az);
     beam(bt, bt, depth, ix, topY, midZ);
     beam(bt, bt, depth, ax, topY, midZ);
-    // Traverses de plafond (le long de X), réparties en profondeur.
+    // Ceiling joists (along X), spread across the depth.
     for (let k = -1; k <= 1; k++) beam(width, bt, bt * 1.1, midX, topY, midZ + (k * depth) / 3);
 
-    // Meubles (chalet minimaliste) : cheminée au fond, tournée vers l'intérieur.
+    // Furniture (minimalist cabin): fireplace at the back, facing inward.
     const fp = fireplace();
     fp.group.position.set(midX, 0, maxZ - 0.7);
-    fp.group.rotation.y = Math.PI; // âtre vers −z (l'intérieur)
+    fp.group.rotation.y = Math.PI; // hearth facing -z (inward)
     g.add(fp.group);
     this.track(fp.logGeo, ...(fp.mats || []));
-    this.fireplaceFire = { light: fp.light, flames: fp.flames }; // animé (vacillement) dans update
+    this.fireplaceFire = { light: fp.light, flames: fp.flames }; // animated (flicker) in update
     const lamp = lantern();
     lamp.group.position.set(midX, WALL_H - 0.5, maxZ - 1.0);
     g.add(lamp.group);
 
-    // Deuxième loupiote (murale) près de la porte.
+    // Second lantern (wall-mounted) near the door.
     const lamp2 = lantern();
     lamp2.group.position.set(doorX + doorW / 2 + 0.6, 2.4, minZ + 0.3);
     g.add(lamp2.group);
@@ -312,14 +312,14 @@ export class ForestLevel extends Level {
     g.add(boardLight);
     this.track(boardTex, boardMat);
 
-    // Panneau explicatif « STAY IN THE LIGHT » AU-DESSUS DE LA PORTE (bien visible en sortant) :
-    // BONK craint le feu → il faut aller de feu de camp en feu de camp.
+    // Explanatory "STAY IN THE LIGHT" sign ABOVE THE DOOR (clearly visible on the way out):
+    // BONK fears fire -> the player must go from campfire to campfire.
     const hintTex = makeFireHintTexture();
     const hintMat = new THREE.MeshStandardMaterial({ map: hintTex, emissive: 0xffffff, emissiveMap: hintTex, emissiveIntensity: 1.2, roughness: 0.9, side: THREE.DoubleSide });
-    const rx = (doorX + doorW / 2 + maxX) / 2; // segment nord, à DROITE de la porte
+    const rx = (doorX + doorW / 2 + maxX) / 2; // north segment, to the RIGHT of the door
     const hint = new THREE.Mesh(new THREE.PlaneGeometry(3.7, 2.05), hintMat);
-    // NB : le mur nord (épaisseur 0.35) est centré sur minZ → sa face interne est à minZ+0.175.
-    // On place le panneau bien DEVANT (minZ+0.4) pour qu'il ne soit plus noyé dans le mur.
+    // NB: the north wall (thickness 0.35) is centered on minZ -> its inner face is at minZ+0.175.
+    // The sign is placed well IN FRONT (minZ+0.4) so it doesn't get buried in the wall.
     hint.position.set(rx, 2.15, minZ + 0.4);
     g.add(hint);
     const hintLight = new THREE.PointLight(0xffca80, 2.6, 11, 1.5);
@@ -333,7 +333,7 @@ export class ForestLevel extends Level {
     const frameMat = new THREE.MeshStandardMaterial({ color: 0x241812, roughness: 0.8 });
     const photoMat = new THREE.MeshStandardMaterial({ map: photoTex, emissive: 0xffffff, emissiveMap: photoTex, emissiveIntensity: 0.6, roughness: 0.9 });
     const frame = new THREE.Mesh(new THREE.BoxGeometry(3.7, 2.7, 0.12), frameMat);
-    frame.position.set(maxX - 0.14, 2.2, midZ); // CENTRÉ sur le mur est (pièce maîtresse)
+    frame.position.set(maxX - 0.14, 2.2, midZ); // CENTERED on the east wall (centerpiece)
     frame.rotation.y = -Math.PI / 2;
     const photo = new THREE.Mesh(new THREE.PlaneGeometry(3.35, 2.35), photoMat);
     photo.position.set(maxX - 0.2, 2.2, midZ);
@@ -358,12 +358,12 @@ export class ForestLevel extends Level {
     addLore(0, maxX - 0.12, 1.85, midZ + 4.2, -Math.PI / 2);
     // North wall, left of the door: he fears the light.
     addLore(1, (minX + doorX - doorW / 2) / 2, 1.85, minZ + 0.12, 0);
-    // (Le segment nord-droit est occupé par le panneau « STAY IN THE LIGHT ».)
+    // (The north-right segment is occupied by the "STAY IN THE LIGHT" sign.)
     // South wall, flanking the fireplace.
     addLore(3, midX - 6.5, 2.0, maxZ - 0.12, Math.PI);
     addLore(4, midX + 6.5, 2.0, maxZ - 0.12, Math.PI);
 
-    // Tableaux (portraits encadrés) d'Ansem et de BONK, avec une légende (lore).
+    // Paintings (framed portraits) of Ansem and BONK, with a caption (lore).
     const addPortrait = (imgSrc, caption, x, y, z, yaw) => {
       const tex = new THREE.TextureLoader().load(imgSrc);
       tex.colorSpace = THREE.SRGBColorSpace;
@@ -376,24 +376,24 @@ export class ForestLevel extends Level {
       const cap = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 0.46), capMat);
       const inset = 0.02;
       for (const m of [frame, img, cap]) m.rotation.y = yaw;
-      // Décale image/légende « devant » le cadre selon l'orientation du mur.
-      const nx = Math.sin(yaw), nz = Math.cos(yaw); // normale approx (yaw autour de Y)
+      // Offsets image/caption "in front of" the frame based on the wall's orientation.
+      const nx = Math.sin(yaw), nz = Math.cos(yaw); // approx normal (yaw around Y)
       frame.position.set(x, y, z);
       img.position.set(x + nx * (0.07 + inset), y, z + nz * (0.07 + inset));
       cap.position.set(x + nx * (0.07 + inset), y - 1.55, z + nz * (0.07 + inset));
       g.add(frame, img, cap);
       this.track(tex, frameMat, imgMat, capTex, capMat);
     };
-    // Portraits d'Ansem et de BONK : à HAUTEUR DES YEUX sur le mur ouest, symétriques de part et
-    // d'autre du tableau central (le mur est est réservé à la grande photo encadrée, centrée).
+    // Portraits of Ansem and BONK: at EYE LEVEL on the west wall, symmetric on either
+    // side of the central painting (the east wall is reserved for the large centered framed photo).
     addPortrait('/monster.png', 'ANSEM: he bought the dip', minX + 0.14, 2.4, midZ - 4.5, Math.PI / 2);
     addPortrait('/bonk-face.png', 'BONK: his dog. now the hunter', minX + 0.14, 2.4, midZ + 4.5, Math.PI / 2);
 
-    // MEUBLES : le chalet n'est plus vide. Lit (on s'y réveille) contre le mur ouest,
-    // table + chaises au centre-est, décalés du chemin porte↔joueur.
+    // FURNITURE: the cabin is no longer empty. Bed (where the player wakes up) against the west wall,
+    // table + chairs at the center-east, offset from the door<->player path.
     const bed = chaletBed();
     bed.position.set(minX + 1.4, 0, maxZ - 3.2);
-    bed.rotation.y = Math.PI / 2; // tête de lit contre le mur ouest
+    bed.rotation.y = Math.PI / 2; // headboard against the west wall
     g.add(bed);
 
     const table = chaletTable();
@@ -410,8 +410,8 @@ export class ForestLevel extends Level {
       g.add(chair);
     }
 
-    // Détails : tapis au centre, tas de bûches + gamelle de BONK près de la cheminée,
-    // étagère à bocaux sur le mur nord, tabouret près du feu.
+    // Details: rug at the center, pile of logs + BONK's food bowl near the fireplace,
+    // jar shelf on the north wall, stool by the fire.
     const carpet = rug();
     carpet.position.set(midX - 1.5, 0.05, midZ + 0.5);
     g.add(carpet);
@@ -425,14 +425,14 @@ export class ForestLevel extends Level {
     g.add(bowl);
 
     const sh = shelf();
-    sh.position.set(doorX - doorW / 2 - 2.2, 2.6, minZ + 0.3); // mur nord, à gauche de la porte
+    sh.position.set(doorX - doorW / 2 - 2.2, 2.6, minZ + 0.3); // north wall, left of the door
     g.add(sh);
 
     const st = stool();
     st.position.set(midX + 1.4, 0, maxZ - 2.4);
     g.add(st);
 
-    // GRIFFURES sur les murs (quelqu'un a griffé le bois pour sortir).
+    // CLAW MARKS on the walls (someone clawed the wood trying to get out).
     for (const [x, y, z, ry, seed] of [
       [maxX - 0.12, 2.3, midZ - 4.8, -Math.PI / 2, 4],
       [midX - 4.8, 2.4, maxZ - 0.12, Math.PI, 5],
@@ -445,7 +445,7 @@ export class ForestLevel extends Level {
       this.track(claw.tex, claw.mat);
     }
 
-    // Éclairage chaud de base du chalet.
+    // Base warm lighting of the cabin.
     const warm = new THREE.PointLight(0xffb066, 2.6, 16, 1.5);
     warm.position.set(midX, WALL_H - 0.6, midZ);
     g.add(warm);
@@ -466,23 +466,24 @@ export class ForestLevel extends Level {
     return list;
   }
 
-  // Sortie : ENTRÉE DE MINE au bout du chemin. On s'enfonce dans la roche (montagnes en fond),
-  // un court tunnel rocheux, et au fond un cadre d'Ansem marqué « EXIT ». Le couloir final
-  // (col cx, rangs 1→5) est déjà droit selon l'axe z (x constant) → géométrie alignée sur z.
+  // Exit: MINE ENTRANCE at the end of the path. The player descends into the rock (mountains in
+  // the background), a short rocky tunnel, and at the back a framed picture of Ansem marked "EXIT".
+  // The final corridor (col cx, rows 1->5) is already straight along the z axis (x constant) ->
+  // geometry aligned on z.
   #buildMineExit() {
     const g = new THREE.Group();
-    const eW = this.maze.cellToWorld(this.maze.exit.col, this.maze.exit.row); // case sortie (rang 1)
-    const inW = this.maze.cellToWorld(this.maze.exit.col, this.maze.exit.row + 1); // rang 2 (vers forêt)
+    const eW = this.maze.cellToWorld(this.maze.exit.col, this.maze.exit.row); // exit cell (row 1)
+    const inW = this.maze.cellToWorld(this.maze.exit.col, this.maze.exit.row + 1); // row 2 (toward the forest)
     const xC = eW.x;
-    const zStep = eW.z - inW.z; // pas d'une cellule vers le NORD (dans la roche)
+    const zStep = eW.z - inW.z; // step of one cell toward the NORTH (into the rock)
     const zExit = eW.z;
-    const zMouth = zExit - zStep * 4; // bouche (côté forêt), ~4 cellules au sud de la sortie
-    const zBack = zExit + zStep * 1; // fond du tunnel, une cellule au nord de la sortie
-    const H = 5.4; // hauteur du tunnel
-    const halfW = CELL * 1.5; // demi-largeur (couloir de 3 cases)
+    const zMouth = zExit - zStep * 4; // mouth (forest side), ~4 cells south of the exit
+    const zBack = zExit + zStep * 1; // back of the tunnel, one cell north of the exit
+    const H = 5.4; // tunnel height
+    const halfW = CELL * 1.5; // half-width (3-cell-wide corridor)
 
-    // Matériaux roche : DEUX textures dédiées (répétition adaptée → pas d'étirement smearé)
-    // et un sol avec polygonOffset (évite le z-fighting avec le sol de la forêt qui passe dessous).
+    // Rock materials: TWO dedicated textures (repeat tuned -> no smeared stretching)
+    // and a floor with polygonOffset (avoids z-fighting with the forest floor passing underneath).
     const wallTex = makeRockTexture();
     wallTex.repeat.set(4, 1.4);
     const rockCapTex = makeRockTexture();
@@ -495,7 +496,7 @@ export class ForestLevel extends Level {
     const zMid = (zMouth + zBack) / 2;
     const depth = Math.abs(zBack - zMouth) + CELL;
 
-    // Parois latérales rocheuses + plafond + sol + fond.
+    // Rocky side walls + ceiling + floor + back.
     const sideGeo = new THREE.BoxGeometry(0.8, H, depth);
     for (const sx of [-1, 1]) {
       const wall = new THREE.Mesh(sideGeo, rock);
@@ -511,11 +512,11 @@ export class ForestLevel extends Level {
     floorM.rotation.x = -Math.PI / 2;
     floorM.position.set(xC, 0.15, zMid);
     g.add(floorM);
-    // PAS de mur du fond : le tunnel débouche sur les montagnes/brouillard → plus aucun mur ne
-    // masque la sortie ; le cadre « EXIT » flotte en bout de tunnel, bien visible.
+    // NO back wall: the tunnel opens onto the mountains/fog -> no wall hides
+    // the exit; the "EXIT" frame floats at the end of the tunnel, clearly visible.
     this.track(sideGeo, ceilGeo, floorGeo);
 
-    // Bouche de mine : cadre en madriers (montants + linteau) à l'entrée côté forêt.
+    // Mine mouth: timber frame (posts + lintel) at the forest-side entrance.
     const woodTex = makeWoodTexture();
     const wood = new THREE.MeshStandardMaterial({ map: woodTex, color: 0x6a4a28, roughness: 0.9 });
     this.track(woodTex, wood);
@@ -529,20 +530,20 @@ export class ForestLevel extends Level {
     const lintel = new THREE.Mesh(lintelGeo, wood);
     lintel.position.set(xC, H + 0.1, zMouth);
     g.add(lintel);
-    // Étai diagonal.
+    // Diagonal brace.
     const braceGeo = new THREE.BoxGeometry(halfW * 2, 0.4, 0.4);
     const brace = new THREE.Mesh(braceGeo, wood);
     brace.position.set(xC, H - 0.9, zMouth + zStep * 0.15);
     g.add(brace);
     this.track(postGeo, lintelGeo, braceGeo);
 
-    // Montagnes derrière/autour (silhouettes sombres à travers le brouillard) → « on s'enfonce ».
+    // Mountains behind/around (dark silhouettes through the fog) -> "you're going deeper".
     const mtnMat = new THREE.MeshStandardMaterial({ color: 0x14161b, roughness: 1 });
     this.track(mtnMat);
-    // Uniquement DERRIÈRE le fond (au nord) : les anciens reliefs « de flanc » débordaient dans
-    // le couloir et se traversaient (le bug de texture signalé à l'entrée) → supprimés.
-    // Reculées et rétrécies pour que leur base (rayon) NE PÉNÈTRE PLUS dans le tunnel :
-    // il faut 6·(distance en cases) > rayon → aucune partie du cône ne franchit le fond.
+    // ONLY BEHIND the back wall (to the north): the old "flanking" reliefs used to poke into
+    // the corridor and clip through it (the texture bug reported at the entrance) -> removed.
+    // Pulled back and shrunk so their base (radius) NO LONGER penetrates the tunnel:
+    // we need 6*(distance in cells) > radius -> no part of the cone crosses the back wall.
     const mtns = [
       [xC, zBack + zStep * 5, 24, 54],
       [xC - 34, zBack + zStep * 4, 20, 42],
@@ -557,10 +558,10 @@ export class ForestLevel extends Level {
       this.track(geo);
     }
 
-    // Cadre d'Ansem « EXIT » au fond, contre le mur nord (face à la forêt/au joueur).
-    const faceYaw = zStep < 0 ? 0 : Math.PI; // normale du cadre orientée vers la forêt (−zStep)
-    const zFrame = zExit + zStep * 0.4; // bien DANS le tunnel, face au joueur (rien derrière ne le cache)
-    const outward = -Math.sign(zStep) * 0.1; // pousse image/légende devant le cadre (vers le joueur)
+    // Ansem "EXIT" frame at the back, against the north wall (facing the forest/the player).
+    const faceYaw = zStep < 0 ? 0 : Math.PI; // frame's normal oriented toward the forest (-zStep)
+    const zFrame = zExit + zStep * 0.4; // well INSIDE the tunnel, facing the player (nothing behind hides it)
+    const outward = -Math.sign(zStep) * 0.1; // pushes image/caption in front of the frame (toward the player)
     const ansemTex = new THREE.TextureLoader().load('/monster.png');
     ansemTex.colorSpace = THREE.SRGBColorSpace;
     const frameMat = new THREE.MeshStandardMaterial({ color: 0x1e1409, roughness: 0.85 });
@@ -579,7 +580,7 @@ export class ForestLevel extends Level {
     cap.rotation.y = faceYaw;
     g.add(frame, img, cap);
 
-    // Panneau « EXIT » néon émissif au-dessus du cadre.
+    // Emissive neon "EXIT" sign above the frame.
     const signTex = makeExitSignTexture();
     const signMat = new THREE.MeshStandardMaterial({ map: signTex, emissive: 0xffffff, emissiveMap: signTex, emissiveIntensity: 1.1, transparent: true, roughness: 0.8 });
     const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 2.1), signMat);
@@ -588,7 +589,7 @@ export class ForestLevel extends Level {
     g.add(sign);
     this.track(signTex, signMat);
 
-    // Lumière : lanterne chaude + lueur d'appel (halo pulsé, réutilisé par update()).
+    // Light: warm lantern + beckoning glow (pulsing halo, reused by update()).
     const lamp = lantern();
     lamp.group.position.set(xC + halfW - 0.6, 3.0, zExit);
     g.add(lamp.group);
@@ -601,37 +602,37 @@ export class ForestLevel extends Level {
     const light = new THREE.PointLight(0xbfe0ff, 7, CELL * 7, 1.3);
     light.position.set(xC, 3, zExit);
     g.add(light);
-    // Deuxième lumière plus au sud pour éclairer l'entrée du tunnel (la roche était trop sombre).
+    // Second light further south to light up the tunnel entrance (the rock was too dark).
     const light2 = new THREE.PointLight(0xffd0a0, 3.5, CELL * 6, 1.5);
     light2.position.set(xC, 3.2, zMouth + zStep * 0.5);
     g.add(light2);
     this.track(haloMat);
 
     this.group.add(g);
-    this.exitHaloMat = haloMat; // pulsé dans update() (ligne existante)
+    this.exitHaloMat = haloMat; // pulses in update() (see existing line)
     this.exitLight = light;
   }
 
   enter(game) {
-    // Nuit : fond très sombre, brouillard dense, ambiante minimale (on ne voit que les feux).
+    // Night: very dark background, dense fog, minimal ambient light (only the fires are visible).
     game.scene.background = new THREE.Color(0x05060a);
-    game.scene.fog = new THREE.FogExp2(0x05060a, 0.04); // brouillard : BONK visible d'assez près, fondu au loin
+    game.scene.fog = new THREE.FogExp2(0x05060a, 0.04); // fog: BONK visible from fairly close, fades in the distance
     game.scene.traverse((o) => {
       if (o.isAmbientLight) o.intensity = 0.05;
       if (o.isHemisphereLight) o.intensity = 0.07;
     });
 
-    // Le monstre de la forêt est BONK (créature 3D + sons distincts d'Ansem).
+    // The forest's monster is BONK (3D creature + sounds distinct from Ansem's).
     game.monster.setSkin('bonk');
     game.audio.setMonsterVoice('bonk');
-    game.audio.startMusic('forestTheme', 0.46); // musique d'ambiance de la forêt (fichier fourni)
+    game.audio.startMusic('forestTheme', 0.46); // forest ambient music (provided file)
     game.monster.setVisible(false);
     game.monster.setMode('none');
     game.monster.fleeing = false;
     this.lunging = false;
     this.lungeT = 0;
 
-    game.setFade(1); // yeux fermés (chute → réveil)
+    game.setFade(1); // eyes closed (fall -> waking up)
     game.inputLocked = true;
     this.wakeT = 0;
     this.wakeDone = false;
@@ -645,7 +646,7 @@ export class ForestLevel extends Level {
     this.t += dt;
     const cam = game.camera.position;
 
-    // Vacillement des feux de camp (lumière + flammes + halo).
+    // Campfire flicker (light + flames + halo).
     for (const cf of this.campfires) {
       const f = 0.78 + 0.16 * Math.sin(this.t * 11 + cf.phase) + 0.1 * Math.sin(this.t * 27 + cf.phase * 2);
       cf.light.intensity = 7 * f;
@@ -657,7 +658,7 @@ export class ForestLevel extends Level {
     }
     if (this.exitHaloMat) this.exitHaloMat.opacity = 0.45 + 0.12 * Math.sin(this.t * 2);
 
-    // Vacillement du feu de cheminée (chalet).
+    // Fireplace flicker (cabin).
     if (this.fireplaceFire) {
       const f = 0.8 + 0.15 * Math.sin(this.t * 9 + 1.3) + 0.08 * Math.sin(this.t * 21);
       this.fireplaceFire.light.intensity = 4 * f;
@@ -667,7 +668,7 @@ export class ForestLevel extends Level {
       }
     }
 
-    // Réveil dans le chalet (caméra qui se relève + fondu paupières).
+    // Waking up in the cabin (camera rising + eyelid fade).
     if (!this.wakeDone) {
       const T = (this.wakeT += dt);
       const k = smooth(clamp01((T - 0.3) / 2.6));
@@ -683,21 +684,21 @@ export class ForestLevel extends Level {
       return;
     }
 
-    // Sortie du chalet : on laisse 1 s au joueur pour sortir AVANT que BONK ne se lance.
+    // Exiting the cabin: the player gets 1s to step outside BEFORE BONK starts the chase.
     const cell = this.maze.worldToCell(cam.x, cam.z);
     if (!this.chaseTriggered && cell.row <= this.doorRow) {
       this.chaseTriggered = true;
-      this.chaseDelay = 1.0; // seconde de répit
+      this.chaseDelay = 1.0; // grace period, in seconds
     }
     if (this.chaseTriggered && !this.chasing) {
       this.chaseDelay -= dt;
       if (this.chaseDelay <= 0) {
         this.chasing = true;
-        this.#startChase(game); // rugissement + BONK sort du chalet et poursuit
+        this.#startChase(game); // roar + BONK leaves the cabin and gives chase
       }
     }
 
-    // Zone sûre : à portée d'un feu, BONK ne peut pas attraper (géré par Game via playerSafe).
+    // Safe zone: within range of a fire, BONK cannot catch the player (handled by Game via playerSafe).
     let safe = false;
     for (const cf of this.campfires) {
       if (Math.hypot(cam.x - cf.x, cam.z - cf.z) < SAFE_R) {
@@ -707,52 +708,52 @@ export class ForestLevel extends Level {
     }
     game.playerSafe = safe;
 
-    // Comportement de BONK : dès que le joueur QUITTE un feu, BONK LE POURSUIT directement
-    // (plus de rôdaille), avec des RUÉES plus rapides par intermittence (rugissement). Près
-    // d'un feu, il bat en retraite dans la forêt.
+    // BONK's behavior: as soon as the player LEAVES a fire, BONK CHASES them directly
+    // (no more prowling), with faster intermittent LUNGES (roar). Near
+    // a fire, he retreats into the forest.
     if (this.chasing) {
       if (safe) {
         game.monster.fleeing = true;
-        game.monster.rushMult = 1.9; // s'enfuit vivement
+        game.monster.rushMult = 1.9; // flees briskly
         this.lunging = false;
         this.lungeT = 0;
-        // Dès qu'il s'est assez éloigné, il DISPARAÎT dans la forêt (se cache) tant que tu restes
-        // près du feu - au lieu d'attendre juste devant toi.
+        // Once far enough away, he DISAPPEARS into the forest (hides) as long as the player
+        // stays near the fire, instead of waiting right in front of them.
         const dm = Math.hypot(game.monster.position.x - cam.x, game.monster.position.z - cam.z);
         if (dm > SAFE_R * 3) game.monster.setVisible(false);
       } else {
-        game.monster.setVisible(true); // il ressurgit dès que tu quittes le feu
-        game.monster.fleeing = false; // IL TE COURT DESSUS
+        game.monster.setVisible(true); // he resurfaces as soon as the player leaves the fire
+        game.monster.fleeing = false; // HE'S CHARGING AT YOU
         this.lungeT += dt;
         if (!this.lunging && this.lungeT > this.lungeGap) {
           this.lunging = true;
           this.lungeLeft = 1.8;
           this.lungeT = 0;
-          game.audio.bonkRoar(); // ruée
+          game.audio.bonkRoar(); // lunge
         }
         if (this.lunging) {
-          game.monster.rushMult = 2.1; // ruée rapide
+          game.monster.rushMult = 2.1; // fast lunge
           this.lungeLeft -= dt;
           if (this.lungeLeft <= 0) {
             this.lunging = false;
             this.lungeGap = 3.5 + Math.random() * 3;
           }
         } else {
-          game.monster.rushMult = 1.25; // poursuite soutenue (te rattrape si tu traînes)
+          game.monster.rushMult = 1.25; // sustained pursuit (catches up if the player lags)
         }
       }
       game.setObjective(safe ? 'Safe by the fire, catch your breath' : 'Run to the next fire!');
     }
 
-    // Arrivée à la sortie → niveau suivant (ou victoire si dernier niveau).
+    // Reaching the exit -> next level (or victory if it's the last level).
     if (this.chaseTriggered && nearCell(cam, this.maze, this.maze.exit, CELL * 0.8)) game.advance();
   }
 
   #startChase(game) {
-    // RUGISSEMENT dès que le joueur sort du chalet (pas de screamer d'entrée).
+    // ROAR as soon as the player exits the cabin (no entry screamer).
     game.audio.bonkRoar();
-    // BONK surgit DE DERRIÈRE LE CHALET et TE POURSUIT tout de suite (la distance de spawn
-    // suffit à ne pas te sauter dessus instantanément).
+    // BONK bursts out FROM BEHIND THE CABIN and CHASES the player right away (the spawn
+    // distance is enough that he doesn't jump on them instantly).
     game.monster.placeAt(this.#behindChalet());
     game.monster.setVisible(true);
     game.monster.setMode('chase');
@@ -763,7 +764,7 @@ export class ForestLevel extends Level {
     this.lungeGap = 3.5;
   }
 
-  // Cellule ouverte au fond du chalet (derrière le joueur) → BONK sort de la cabane.
+  // Open cell at the back of the cabin (behind the player) -> BONK exits the cabin from there.
   #behindChalet() {
     const c = this.door.col;
     for (const r of [this.chalet.r1, this.chalet.r1 - 1, this.door.row]) {
@@ -798,7 +799,7 @@ function eyelid(T) {
   if (T < 2.28) return lerp(0.7, 0, (T - 2.12) / 0.16);
   return 0;
 }
-// RNG déterministe (mulberry32) : même graine → même séquence → forêt identique à chaque partie.
+// Deterministic RNG (mulberry32): same seed -> same sequence -> forest identical every playthrough.
 function mulberry32(a) {
   return function () {
     a |= 0;

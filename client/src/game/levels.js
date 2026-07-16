@@ -17,9 +17,9 @@ export class SpawnLevel extends Level {
     this.maze = new Maze(SPAWN_LAYOUT);
     this.monsterMode = 'none';
     this.objective = 'Wake up…';
-    this.ambientScreams = ['scream1', 'scream2']; // cris d'ambiance aléatoires (niveau 1)
-    this.screamEvery = [5, 11]; // niveau 1 : cris fréquents (toutes les ~5-11 s)
-    this.musicTrack = 'level1Music'; // musique du niveau 1 (continue à travers ses sous-niveaux)
+    this.ambientScreams = ['scream1', 'scream2']; // random ambient screams (level 1)
+    this.screamEvery = [5, 11]; // level 1: frequent screams (every ~5-11 s)
+    this.musicTrack = 'level1Music'; // level 1 music (continues across its sub-levels)
     this.buildMazeRenderer();
 
     // Ceiling neons (flicker).
@@ -45,12 +45,12 @@ export class SpawnLevel extends Level {
     this.placeWallDecal(photoFrame(1.0), 3, 6, 'south', { y: 2.0 });
     this.placeWallDecal(photoFrame(1.0), 5, 6, 'south', { y: 2.0 });
 
-    // Panneau « SE CACHER » : explique la planque (coin + lampe éteinte) dès la salle de départ.
+    // "HIDE" panel: explains the hiding mechanic (corner + flashlight off) right from the spawn room.
     const hide = hideHintPanel();
     this.placeWallDecal(hide.mesh, 6, 5, 'east', { y: 2.0 });
     this.track(hide.mat, hide.tex);
 
-    // Mobilier : matelas crasseux (là où l'on se réveille), bureau sous l'écran, chaise renversée.
+    // Furniture: filthy mattress (where the player wakes up), desk under the screen, tipped-over chair.
     const mattress = mattressProp();
     const mw = this.maze.cellToWorld(3, 5);
     mattress.position.set(mw.x, 0, mw.z);
@@ -59,33 +59,33 @@ export class SpawnLevel extends Level {
 
     const desk = deskProp();
     const dw = this.maze.cellToWorld(5, 2);
-    desk.position.set(dw.x, 0, dw.z - 2.4); // plaqué contre le mur nord, sous l'écran
+    desk.position.set(dw.x, 0, dw.z - 2.4); // flush against the north wall, under the screen
     this.group.add(desk);
 
     const chair = chairProp();
     const cw = this.maze.cellToWorld(5, 3);
     chair.position.set(cw.x - 0.4, 0.34, cw.z);
-    chair.rotation.z = Math.PI / 2; // renversée sur le flanc
+    chair.rotation.z = Math.PI / 2; // tipped over on its side
     chair.rotation.y = 0.6;
     this.group.add(chair);
 
-    // Griffures sur les murs (l'occupant précédent a essayé de sortir…).
+    // Claw marks on the walls (the previous occupant tried to get out…).
     for (const [c, r, side, seed] of [[6, 3, 'east', 1], [4, 6, 'south', 2], [2, 6, 'west', 3]]) {
       const claw = clawMarks(3.0, 3.0, seed);
       this.placeWallDecal(claw.mesh, c, r, side, { y: 2.1, offset: 0.08 });
       this.track(claw.tex, claw.mat);
     }
 
-    // Détails supplémentaires : classeur, CRT mort renversé, détritus, cadres, graphique qui crashe.
+    // Extra details: filing cabinet, dead CRT tipped over, clutter, frames, a crashing chart.
     const cabinet = filingCabinet();
     const cab = this.maze.cellToWorld(6, 3);
-    cabinet.position.set(cab.x + 2.6, 0, cab.z); // contre le mur est
+    cabinet.position.set(cab.x + 2.6, 0, cab.z); // against the east wall
     this.group.add(cabinet);
 
     const crt = crtMonitor();
     const crtW = this.maze.cellToWorld(4, 5);
     crt.position.set(crtW.x - 1.6, 0, crtW.z - 0.6);
-    crt.rotation.z = Math.PI / 2; // renversé sur le flanc
+    crt.rotation.z = Math.PI / 2; // tipped over on its side
     crt.rotation.y = 0.5;
     this.group.add(crt);
 
@@ -96,7 +96,7 @@ export class SpawnLevel extends Level {
       this.group.add(trash);
     }
 
-    // Cadres photo encadrant le panneau de contrôles (mur ouest) + graphique crypto en chute.
+    // Photo frames flanking the controls panel (west wall) + a falling crypto chart.
     this.placeWallDecal(photoFrame(0.9), 2, 3, 'west', { y: 2.3 });
     this.placeWallDecal(photoFrame(0.9), 2, 5, 'west', { y: 2.3 });
     const chart = chartPanel();
@@ -111,10 +111,10 @@ export class SpawnLevel extends Level {
     game.inputLocked = true;
     this.wakeT = 0;
     this.wakeDone = false;
-    this.reveilPlayed = false; // son de réveil (fichier fourni) joué une fois, dès qu'il est prêt
+    this.wakePlayed = false; // wake-up sound (provided file) played once, as soon as it's ready
     game.audio.neonBuzz(true);
     game.audio.keyboardAmbience(true);
-    game.audio.startMusic('level1Music', 0.42); // musique du niveau 1
+    game.audio.startMusic('level1Music', 0.42); // level 1 music
     game.setObjective('Wake up…');
   }
 
@@ -131,12 +131,12 @@ export class SpawnLevel extends Level {
 
     if (!this.wakeDone) {
       const T = (this.wakeT += dt);
-      // Joue le son de réveil dès que l'échantillon est décodé (réessaie jusqu'à ~1,5 s).
-      // On coupe la fin (« who are you people ») : lecture des ~14 premières secondes + fondu.
-      if (!this.reveilPlayed && T > 0.2) {
+      // Plays the wake-up sound as soon as the sample is decoded (retries for up to ~1.5 s).
+      // The ending is cut ("who are you people"): plays only the first ~14 seconds + fade out.
+      if (!this.wakePlayed && T > 0.2) {
         const r = game.audio.playSample('wakeup', { gain: 0.9, duration: 8, fadeOut: 0.7 });
         if (r) this._wake = r;
-        if (r || T > 1.5) this.reveilPlayed = true;
+        if (r || T > 1.5) this.wakePlayed = true;
       }
       const cam = game.camera;
       const k = smooth(clamp01((T - 0.3) / 2.6));
@@ -156,7 +156,7 @@ export class SpawnLevel extends Level {
   }
 
   dispose() {
-    // Coupe le son de réveil s'il joue encore, pour qu'il ne déborde pas sur le niveau suivant.
+    // Stops the wake-up sound if it's still playing, so it doesn't bleed into the next level.
     try {
       this._wake?.src.stop();
     } catch {
@@ -176,9 +176,9 @@ export class LabyrinthLevel extends Level {
     this.maze = new Maze(PATH_LAYOUT);
     this.monsterMode = 'none';
     this.objective = 'Follow the corridor';
-    this.ambientScreams = ['scream1', 'scream2']; // cris d'ambiance aléatoires (niveau 1)
-    this.screamEvery = [5, 11]; // niveau 1 : cris fréquents (toutes les ~5-11 s)
-    this.musicTrack = 'level1Music'; // musique du niveau 1 (continue à travers ses sous-niveaux)
+    this.ambientScreams = ['scream1', 'scream2']; // random ambient screams (level 1)
+    this.screamEvery = [5, 11]; // level 1: frequent screams (every ~5-11 s)
+    this.musicTrack = 'level1Music'; // level 1 music (continues across its sub-levels)
     this.buildMazeRenderer();
 
     this.charts = [];
@@ -208,7 +208,7 @@ export class LabyrinthLevel extends Level {
   }
 
   enter(game) {
-    game.audio.startMusic('level1Music', 0.42); // musique du niveau 1 (continue)
+    game.audio.startMusic('level1Music', 0.42); // level 1 music (continues)
     game.setObjective('Follow the corridor to the exit');
   }
 
@@ -219,13 +219,13 @@ export class LabyrinthLevel extends Level {
     let spike = 0;
     if (this.crashT <= 0) {
       this.crashT = 3 + Math.random() * 3;
-      spike = 1; // flash visuel uniquement (pas de bruitage)
+      spike = 1; // visual flash only (no sound)
       this._flash = 0.5;
     }
     if (this._flash > 0) this._flash = Math.max(0, this._flash - dt);
     for (const mat of this.charts) mat.emissiveIntensity = base + this._flash + spike;
 
-    // Texte qui réapparaît (sans bruitage).
+    // Text that reappears (no sound).
     this.voiceT -= dt;
     if (this.voiceT <= 0) {
       this.voiceT = 5 + Math.random() * 2;
@@ -243,23 +243,23 @@ export class LabyrinthLevel extends Level {
 // =============================================================
 export class EscapeLevel extends Level {
   build() {
-    // Carte FIXE (toujours la même → mémorisable), plus petite que l'ancienne map procédurale.
+    // FIXED map (always the same -> memorable), smaller than the old procedural map.
     this.maze = new Maze(ESCAPE_LAYOUT);
-    this.monsterMode = 'none'; // Ansem reste invisible jusqu'au déclenchement
+    this.monsterMode = 'none'; // Ansem stays invisible until triggered
     this.portal = true;
-    this.exitKind = 'hole'; // la sortie est un trou dans le sol (transition « chute » → forêt)
-    this.feasibleSanity = 0.3; // jouable ~30 % de santé mentale (cf. Game)
-    this.objective = ''; // niveau muet : rien ne s'affiche quand les éléments apparaissent
-    this.ambientScreams = ['scream1', 'scream2']; // cris d'ambiance aléatoires (niveau 1)
-    this.screamEvery = [5, 11]; // niveau 1 : cris fréquents (toutes les ~5-11 s)
-    this.musicTrack = 'level1Music'; // musique du niveau 1 (continue à travers ses sous-niveaux)
+    this.exitKind = 'hole'; // the exit is a hole in the ground (a "fall" transition -> forest)
+    this.feasibleSanity = 0.3; // playable at ~30% sanity (see Game)
+    this.objective = ''; // silent level: nothing is displayed as elements appear
+    this.ambientScreams = ['scream1', 'scream2']; // random ambient screams (level 1)
+    this.screamEvery = [5, 11]; // level 1: frequent screams (every ~5-11 s)
+    this.musicTrack = 'level1Music'; // level 1 music (continues across its sub-levels)
     this.buildMazeRenderer();
 
-    // Panneau « EXIT ↓ » au mur, face à l'arrivée du joueur sur le trou.
+    // "EXIT down" sign on the wall, facing the player as they arrive at the hole.
     this.#placeExitSign();
 
-    // Porte blindée coulissante, orientée selon l'axe du mur qui la porte : mur horizontal
-    // (murs à gauche/droite) → la porte fait face au nord/sud (yaw 0) ; sinon face est/ouest.
+    // Sliding armored door, oriented to match the wall axis it's set into: horizontal wall
+    // (walls to the left/right) -> the door faces north/south (yaw 0); otherwise faces east/west.
     this.doorH = 4;
     const dc = this.maze.escapeDoor;
     const horizontalWall = this.maze.isWall(dc.col - 1, dc.row) && this.maze.isWall(dc.col + 1, dc.row);
@@ -272,7 +272,7 @@ export class EscapeLevel extends Level {
     this.doorGroup = d.group;
     this.lockMat = d.lockMat;
 
-    // Lumière rouge d'avertissement au-dessus de la porte (tant qu'elle est fermée).
+    // Red warning light above the door (while it's closed).
     this.redLampMat = new THREE.MeshStandardMaterial({ color: 0x3a0000, emissive: 0xff1010, emissiveIntensity: 2 });
     const lamp = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.3, 0.5), this.redLampMat);
     lamp.position.set(this.doorW.x, this.doorH + 0.7, this.doorW.z);
@@ -283,7 +283,7 @@ export class EscapeLevel extends Level {
     this.group.add(this.redLight);
     this.redPulse = 0;
 
-    // --- Clés PEPE à récupérer dans le labyrinthe (avant d'activer le portail) ---
+    // --- PEPE keys to collect in the maze (before activating the portal) ---
     this.coins = this.#placeCoins();
     this.coinSpin = 0;
 
@@ -292,8 +292,8 @@ export class EscapeLevel extends Level {
     this.opening = false;
   }
 
-  // Pose les PEPE aux cellules FIXES définies par la carte (maze.pepeCells) → mêmes positions
-  // à chaque partie (mémorisables).
+  // Places the PEPE coins at the FIXED cells defined by the map (maze.pepeCells) -> same positions
+  // every run (memorable).
   #placeCoins() {
     const m = this.maze;
     const coins = [];
@@ -319,7 +319,7 @@ export class EscapeLevel extends Level {
     return coins;
   }
 
-  // Panneau EXIT sur un mur de la cellule de sortie, de préférence face à l'arrivée du joueur.
+  // EXIT sign on a wall of the exit cell, preferably facing the player's approach.
   #placeExitSign() {
     const m = this.maze;
     const ex = m.exit;
@@ -346,23 +346,23 @@ export class EscapeLevel extends Level {
   }
 
   enter(game) {
-    // Ansem est posté au recoin mais INVISIBLE (on ne le voit pas avant le screamer).
+    // Ansem is stationed at the dead end but INVISIBLE (not seen until the screamer).
     game.monster.placeAt(this.maze.deadEnd);
     game.monster.setVisible(false);
     game.monster.setMode('none');
-    game.audio.startMusic('level1Music', 0.42); // musique du niveau 1 (continue)
-    // Niveau muet : pas d'objectif affiché.
+    game.audio.startMusic('level1Music', 0.42); // level 1 music (continues)
+    // Silent level: no objective displayed.
   }
 
   update(dt, game) {
-    // --- Clés PEPE : flottement/rotation + ramassage à proximité ---
+    // --- PEPE keys: float/rotation + pickup when nearby ---
     this.coinSpin += dt;
     const cam = game.camera.position;
     for (const coin of this.coins) {
       if (coin.collected) continue;
       coin.group.position.y = coin.baseY + Math.sin(this.coinSpin * 2 + coin.col) * 0.18;
       coin.group.rotation.y += dt * 1.5;
-      // Pouls néon : anneau qui tourne, lueur et lumière qui respirent.
+      // Neon pulse: spinning ring, breathing glow and light.
       const pulse = 0.75 + Math.sin(this.coinSpin * 3.5 + coin.col) * 0.25;
       if (coin.ring) coin.ring.rotation.z += dt * 2.6;
       if (coin.light) coin.light.intensity = 2.2 + pulse * 1.6;
@@ -375,7 +375,7 @@ export class EscapeLevel extends Level {
       }
     }
 
-    // Ouverture de la porte (glisse vers le haut), quelle que soit la phase.
+    // Door opening (slides upward), regardless of phase.
     if (this.opening) {
       this.doorGroup.position.y += dt * 3.5;
       if (this.doorGroup.position.y > this.doorH * 1.4) {
@@ -384,7 +384,7 @@ export class EscapeLevel extends Level {
       }
     }
 
-    // Pulsation de la lumière rouge tant que la porte est fermée (avant le screamer).
+    // Red light pulsing while the door is closed (before the screamer).
     if (this.redLight && (this.phase === 'explore' || this.phase === 'approach' || this.phase === 'screamer')) {
       this.redPulse += dt * 4;
       this.redLight.intensity = 3.5 + Math.sin(this.redPulse) * 2.5;
@@ -397,7 +397,7 @@ export class EscapeLevel extends Level {
       const dEndCell = this.maze.deadEnd;
       const nearDeadEnd = Math.abs(cell.col - dEndCell.col) + Math.abs(cell.row - dEndCell.row) <= 2;
       if (nearDeadEnd) {
-        // On le VOIT ARRIVER : il apparaît au recoin et fonce vers nous.
+        // We SEE HIM COMING: he appears at the dead end and charges toward us.
         this.phase = 'approach';
         this.appT = 0;
         game.inputLocked = true;
@@ -419,14 +419,14 @@ export class EscapeLevel extends Level {
 
     if (this.phase === 'approach') {
       this.appT += dt;
-      const k = clamp01(this.appT / 0.3); // fonce vite (rush)
+      const k = clamp01(this.appT / 0.3); // charges fast (rush)
       game.monster.position.x = lerp(this.appFrom.x, this.appTo.x, k);
       game.monster.position.z = lerp(this.appFrom.z, this.appTo.z, k);
       if (this.appT >= 0.3) {
         this.phase = 'screamer';
         game.screamer(() => {
-          // Après le screamer : la porte s'ouvre et Ansem s'approche LENTEMENT (creep),
-          // sans pouvoir attraper encore (l'approche lente n'est pas létale).
+          // After the screamer: the door opens and Ansem approaches SLOWLY (creep),
+          // unable to catch the player yet (the slow approach isn't lethal).
           game.monster.placeAt(this.maze.deadEnd);
           game.monster.setMode('creep');
           this.maze.openDoor(this.maze.escapeDoor.col, this.maze.escapeDoor.row);
@@ -441,8 +441,8 @@ export class EscapeLevel extends Level {
       return;
     }
 
-    // Approche lente : dès que le joueur FRANCHIT la porte vers le labyrinthe (rangée au-dessus
-    // de la porte), un décompte silencieux de 5 s démarre avec une tension sonore qui monte.
+    // Slow approach: as soon as the player CROSSES the door into the maze (row above
+    // the door), a silent 5 s countdown starts with rising sound tension.
     if (this.phase === 'creep' && cell.row < this.maze.escapeDoor.row) {
       this.phase = 'countdown';
       this.countT = 5;
@@ -450,14 +450,14 @@ export class EscapeLevel extends Level {
 
     if (this.phase === 'countdown') {
       this.countT -= dt;
-      // (Sons de tension « dread » ET « crash » retirés à la demande - transition silencieuse.)
+      // (The "dread" AND "crash" tension sounds were removed on request - silent transition.)
       if (this.countT <= 0) {
-        game.monster.setMode('chase'); // la vraie poursuite commence (sans texte)
+        game.monster.setMode('chase'); // the real chase begins (no text)
         this.phase = 'chase';
       }
     }
 
-    // Arrivée sur le trou (une fois les 3 clés réunies) → chute cinématique vers la forêt.
+    // Arrival at the hole (once the 3 keys are collected) -> cinematic fall into the forest.
     if (this.portalActive && !this._falling) {
       const e = this.maze.cellToWorld(this.maze.exit.col, this.maze.exit.row);
       if (Math.hypot(e.x - cam.x, e.z - cam.z) < CELL * 0.7) {
@@ -465,7 +465,7 @@ export class EscapeLevel extends Level {
         game.fallThrough(() => game.advance());
       }
     }
-    // Capture gérée par Game.
+    // Capture handled by Game.
   }
 }
 

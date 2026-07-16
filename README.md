@@ -1,4 +1,4 @@
-# 🐕 Escape BONK
+# 🐕 Escape ANSEM
 
 A narrative first-person 3D horror game in **3 chained levels**, hunted by **Ansem**.
 
@@ -78,7 +78,7 @@ RPC endpoint stays strictly server-side and is never exposed to the browser. Con
 stays at its last stored value.
 
 ```js
-window.escapeBonk.getSanity(); // read-only: current sanity in-game (debug)
+window.escapeAnsem.getSanity(); // read-only: current sanity in-game (debug)
 ```
 
 The bonding-curve phase and a post-migration PumpSwap pool are both handled automatically.

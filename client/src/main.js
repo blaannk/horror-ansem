@@ -7,8 +7,8 @@ const app = document.getElementById('app');
 
 let current = null;
 
-// Musique du menu (boucle). L'autoplay étant bloqué avant interaction, on démarre au premier
-// clic/touche si le play() initial est refusé. Le volume est partagé avec le jeu (config).
+// Menu music (loop). Since autoplay is blocked before interaction, we start on the first
+// click/key press if the initial play() is rejected. Volume is shared with the game (config).
 let menuAudio = null;
 function startMenuMusic() {
   if (!menuAudio) {
@@ -29,7 +29,7 @@ function startMenuMusic() {
 function stopMenuMusic() {
   if (menuAudio) menuAudio.pause();
 }
-// Volume du menu (partagé avec le jeu via la config).
+// Menu volume (shared with the game via config).
 function setMenuVolume(v) {
   if (menuAudio) menuAudio.volume = v;
   const c = loadConfig();
@@ -37,15 +37,15 @@ function setMenuVolume(v) {
   saveConfig(c);
 }
 
-// Petit routeur d'écrans (pas de vraie route/URL) : on détruit l'écran courant puis on
-// monte le suivant sous #app. Écrans : 'landing' (hub, explications intégrées au scroll), 'game'.
-let lastStartLevel = 0; // niveau choisi au menu (rejoué à l'identique sur « Play again »)
+// Small screen router (no real route/URL): destroy the current screen then
+// mount the next one under #app. Screens: 'landing' (hub, explanations built into the scroll), 'game'.
+let lastStartLevel = 0; // level chosen in the menu (replayed identically on "Play again")
 
 function showScreen(name, levelIndex = 0) {
   if (current?.destroy) current.destroy();
   current = null;
 
-  // Musique de menu : active sur le menu, coupée en jeu.
+  // Menu music: on during the menu, off during gameplay.
   if (name === 'game') stopMenuMusic();
   else startMenuMusic();
 
@@ -62,10 +62,10 @@ function showScreen(name, levelIndex = 0) {
 
 function startGame(levelIndex = 0) {
   lastStartLevel = levelIndex;
-  // Config persistée (volume, etc.) ; loadConfig fusionne avec les défauts et renvoie un objet neuf.
+  // Persisted config (volume, etc.); loadConfig merges with the defaults and returns a new object.
   const gameConfig = loadConfig();
-  // La partie est pilotée par le Game ; il n'a pas de destroy() côté routeur (il se nettoie
-  // lui-même à la sortie), donc on ne le stocke pas comme `current`.
+  // The game session is driven by Game; it has no destroy() on the router side (it cleans
+  // itself up on exit), so we don't store it as `current`.
   current = null;
   new Game(
     app,

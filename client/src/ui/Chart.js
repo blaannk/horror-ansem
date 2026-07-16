@@ -1,8 +1,8 @@
-// Moniteur « santé mentale » facon écran d'activité (grille sombre, courbe orange, axes
-// libellés). Sans dépendance : tout est dessiné sur un <canvas>. Le cadre/bezel + le titre
-// sont fournis par le HTML/CSS autour (voir .mh-monitor) ; ici on dessine uniquement le plot.
+// "Mental health" monitor styled like an activity screen (dark grid, orange curve, labeled
+// axes). No dependency: everything is drawn on a <canvas>. The frame/bezel + title
+// are provided by the surrounding HTML/CSS (see .mh-monitor); here we only draw the plot.
 //
-// points : [{ sanity: 0..1 }]  → tracé sur un axe 0..10 ("SANITY") vs 0..60 ("TIME IN SECONDS").
+// points: [{ sanity: 0..1 }] -> plotted on an axis 0..10 ("SANITY") vs 0..60 ("TIME IN SECONDS").
 
 export class Chart {
   constructor(canvas, opts = {}) {
@@ -12,7 +12,7 @@ export class Chart {
     this.points = [];
   }
 
-  // Conservé pour la pastille de valeur (vert→rouge comme le HUD si besoin).
+  // Kept for the value pill (green-to-red like the HUD if needed).
   static color(s, a = 1) {
     const h = Math.round(Math.max(0, Math.min(1, s)) * 155);
     return `hsla(${h}, 75%, 52%, ${a})`;
@@ -37,7 +37,7 @@ export class Chart {
     }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    // Écran (fond teal très sombre + légère vignette).
+    // Screen (very dark teal background + slight vignette).
     ctx.clearRect(0, 0, w, h);
     ctx.fillStyle = '#0b1614';
     ctx.fillRect(0, 0, w, h);
@@ -61,7 +61,7 @@ export class Chart {
     ctx.lineWidth = 1;
     ctx.font = `${compact ? 8 : 10}px ui-monospace, Consolas, monospace`;
 
-    // Lignes horizontales + graduations Y (0..10).
+    // Horizontal lines + Y ticks (0..10).
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'right';
     for (let v = 0; v <= yMax; v++) {
@@ -77,7 +77,7 @@ export class Chart {
       }
     }
 
-    // Lignes verticales + graduations X (0..60).
+    // Vertical lines + X ticks (0..60).
     ctx.textBaseline = 'top';
     ctx.textAlign = 'center';
     for (let v = 0; v <= xMax; v += xStep) {
@@ -91,7 +91,7 @@ export class Chart {
       ctx.fillText(String(v), x, y0 + plotH + 4);
     }
 
-    // Titres d'axes (masqués en compact pour rester lisible).
+    // Axis titles (hidden in compact mode to stay readable).
     if (!compact) {
       ctx.fillStyle = 'rgba(214, 236, 228, 0.9)';
       ctx.textAlign = 'center';
@@ -106,7 +106,7 @@ export class Chart {
       ctx.restore();
     }
 
-    // Courbe (orange, avec léger halo) + point courant.
+    // Curve (orange, with a slight glow) + current point.
     const pts = this.points;
     const clamp01 = (v) => Math.max(0, Math.min(1, v));
     const yAt = (s) => y0 + plotH * (1 - clamp01(s));

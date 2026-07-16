@@ -1,13 +1,13 @@
-// Authentification par wallet Phantom (Solana), sans mot de passe ni base de comptes.
+// Phantom wallet (Solana) authentication, no password or account database.
 //
-// Flux « Sign-In With Solana » :
-//   1. le client demande un défi (nonce) pour sa clé publique ;
-//   2. il signe le message du défi avec Phantom (signMessage) ;
-//   3. le serveur vérifie la signature ed25519 → prouve la possession du wallet ;
-//   4. le serveur émet un JETON DE SESSION signé (HMAC) qui identifie le wallet.
+// "Sign-In With Solana" flow:
+//   1. the client requests a challenge (nonce) for its public key;
+//   2. it signs the challenge message with Phantom (signMessage);
+//   3. the server verifies the ed25519 signature, proving possession of the wallet;
+//   4. the server issues a signed (HMAC) SESSION TOKEN that identifies the wallet.
 //
-// Le jeton de session sert ensuite d'identité vérifiée pour lier les scores au wallet.
-// Tout est sans état côté serveur (défi et session sont des jetons HMAC auto-portés).
+// The session token then serves as verified identity to link scores to the wallet.
+// Everything is stateless server-side (challenge and session are self-contained HMAC tokens).
 
 import crypto from 'node:crypto';
 import { createRequire } from 'node:module';
@@ -16,7 +16,7 @@ const require = createRequire(import.meta.url);
 const nacl = require('tweetnacl');
 const { PublicKey } = require('@solana/web3.js');
 
-// Secret de signature (stable de préférence). Réutilise RUN_TOKEN_SECRET à défaut d'AUTH_SECRET.
+// Signing secret (stable preferred). Falls back to RUN_TOKEN_SECRET if AUTH_SECRET is unset.
 const ENV_SECRET = process.env.AUTH_SECRET || process.env.RUN_TOKEN_SECRET || null;
 let bootSecret = null;
 function secret() {
@@ -24,15 +24,15 @@ function secret() {
   if (!bootSecret) {
     bootSecret = crypto.randomBytes(32).toString('hex');
     console.warn(
-      '[auth] AUTH_SECRET/RUN_TOKEN_SECRET absents → secret aléatoire par démarrage ' +
-        '(les sessions wallet ne survivent pas à un redémarrage).'
+      '[auth] AUTH_SECRET/RUN_TOKEN_SECRET missing, using a random per-boot secret ' +
+        '(wallet sessions will not survive a restart).'
     );
   }
   return bootSecret;
 }
 
-const CHALLENGE_TTL_MS = 5 * 60 * 1000; // le défi doit être signé sous 5 min
-const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // session valable 7 jours
+const CHALLENGE_TTL_MS = 5 * 60 * 1000; // the challenge must be signed within 5 min
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // session valid for 7 days
 
 function sign(b64) {
   return crypto.createHmac('sha256', secret()).update(b64).digest('base64url');
@@ -55,7 +55,7 @@ function decode(token) {
   }
 }
 
-// Valide le format d'une adresse Solana (base58, 32 bytes).
+// Validates the format of a Solana address (base58, 32 bytes).
 function isValidPubkey(pk) {
   try {
     return typeof pk === 'string' && new PublicKey(pk).toBytes().length === 32;
@@ -64,7 +64,7 @@ function isValidPubkey(pk) {
   }
 }
 
-// Message humain montré dans Phantom. DOIT être reconstructible à l'identique côté serveur.
+// Human-readable message shown in Phantom. MUST be reconstructible identically server-side.
 export function buildMessage(pubkey, nonce) {
   return (
     'Escape ANSEM: sign in to link your scores.\n\n' +
@@ -73,14 +73,14 @@ export function buildMessage(pubkey, nonce) {
   );
 }
 
-// Émet un défi pour une clé publique donnée.
+// Issues a challenge for a given public key.
 export function issueChallenge(publicKey) {
   if (!isValidPubkey(publicKey)) return null;
   const nonce = encode({ w: publicKey, t: Date.now(), r: crypto.randomBytes(12).toString('hex') });
   return { nonce, message: buildMessage(publicKey, nonce) };
 }
 
-// Vérifie le défi (nonce) + la signature ed25519 du message par le wallet.
+// Verifies the challenge (nonce) + the wallet's ed25519 signature of the message.
 export function verifyWalletSignature({ publicKey, signature, nonce }) {
   if (!isValidPubkey(publicKey)) return { ok: false, reason: 'publicKey' };
   const payload = decode(nonce);
@@ -105,12 +105,12 @@ export function verifyWalletSignature({ publicKey, signature, nonce }) {
   return ok ? { ok: true, wallet: publicKey } : { ok: false, reason: 'signature' };
 }
 
-// Émet un jeton de session pour un wallet vérifié.
+// Issues a session token for a verified wallet.
 export function issueSession(wallet) {
   return encode({ w: wallet, exp: Date.now() + SESSION_TTL_MS });
 }
 
-// Vérifie un jeton de session → { ok, wallet }.
+// Verifies a session token → { ok, wallet }.
 export function verifySession(token) {
   const payload = decode(token);
   if (!payload || !payload.w) return { ok: false };

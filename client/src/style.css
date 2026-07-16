@@ -1,5 +1,5 @@
 :root {
-  --bonk: #e11d2b; /* accent principal - ROUGE (orange abandonné) */
+  --bonk: #e11d2b; /* main accent, RED (orange dropped) */
   --bonk-dim: #7d1218;
   --exit: #39ff88;
   --blood: #ff2f2f;
@@ -7,10 +7,10 @@
   --panel: rgba(14, 14, 20, 0.92);
   --text: #e7e7ee;
   --muted: #8a8a99;
-  --drip: #7a0d14; /* rouge sombre pour les coulures des fenêtres */
+  --drip: #7a0d14; /* dark red for window drips */
   --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  --font-horror: 'Nosifer', 'Rock Salt', cursive; /* menu : horreur épaisse & dégoulinante */
-  --font-ui: 'Barlow Condensed', 'Segoe UI', sans-serif; /* fenêtres : UI condensée */
+  --font-horror: 'Nosifer', 'Rock Salt', cursive; /* menu: thick, dripping horror look */
+  --font-ui: 'Barlow Condensed', 'Segoe UI', sans-serif; /* windows: condensed UI */
 }
 
 * {
@@ -250,9 +250,9 @@ input[type='range']::-moz-range-thumb {
   letter-spacing: 1px;
   text-shadow: 0 0 10px rgba(0, 0, 0, 0.9);
 }
-/* Boussole : pointe vers la sortie (visible sur la grande map). */
-/* Boussole : cadran rond épinglé EN BAS AU CENTRE, aiguille verte pointant la sortie. */
-/* Boussole : présentée dans une « fenêtre » (même DA que le menu / le moniteur). */
+/* Compass: points to the exit (visible on the large map). */
+/* Compass: round dial pinned at BOTTOM CENTER, green needle pointing to the exit. */
+/* Compass: presented in a "window" (same art direction as the menu / the monitor). */
 .hud-compass {
   position: absolute;
   bottom: 100px;
@@ -267,7 +267,7 @@ input[type='range']::-moz-range-thumb {
 .hud-compass.on {
   display: block;
 }
-/* Équerres de coin (signature « fenêtre » du menu). */
+/* Corner brackets (the menu's "window" signature). */
 .hud-compass::before,
 .hud-compass::after {
   content: '';
@@ -288,7 +288,7 @@ input[type='range']::-moz-range-thumb {
   right: -1px;
   border-width: 0 1px 1px 0;
 }
-/* Cadran rond (à l'intérieur de la fenêtre). */
+/* Round dial (inside the window). */
 .hud-compass-dial {
   position: relative;
   width: 82px;
@@ -298,7 +298,7 @@ input[type='range']::-moz-range-thumb {
   background: radial-gradient(circle at 50% 42%, rgba(22, 44, 32, 0.7), rgba(0, 0, 0, 0.72));
   box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.7);
 }
-/* Moyeu central fixe. */
+/* Fixed center hub. */
 .hud-compass-dial::after {
   content: '';
   position: absolute;
@@ -316,7 +316,7 @@ input[type='range']::-moz-range-thumb {
   inset: 0;
   transition: transform 0.12s linear;
 }
-/* Aiguille (pointe vers la sortie). */
+/* Needle (points to the exit). */
 .hud-compass-arrow::before {
   content: '';
   position: absolute;
@@ -330,7 +330,7 @@ input[type='range']::-moz-range-thumb {
   border-bottom: 30px solid var(--exit);
   filter: drop-shadow(0 0 7px rgba(57, 255, 136, 0.95));
 }
-/* Contre-aiguille sombre (queue). */
+/* Dark counter-needle (tail). */
 .hud-compass-arrow::after {
   content: '';
   position: absolute;
@@ -353,7 +353,7 @@ input[type='range']::-moz-range-thumb {
   color: var(--exit);
   text-shadow: 0 0 6px rgba(0, 0, 0, 0.95);
 }
-/* Mini-carte des PEPE : n'apparaît qu'à basse santé mentale (≤ 30 %). */
+/* PEPE minimap: only appears at low sanity (≤ 30%). */
 .hud-minimap {
   position: absolute;
   top: 96px;
@@ -405,11 +405,11 @@ input[type='range']::-moz-range-thumb {
 .hud-stamina-fill.low {
   background: var(--blood);
 }
-/* Mini-carte PEPE : même « fenêtre » que le menu / le moniteur. */
+/* PEPE minimap: same "window" as the menu / the monitor. */
 .hud-minimap {
   position: absolute;
   top: 16px;
-  left: auto; /* annule le left:18px hérité - sinon left+right = pleine largeur */
+  left: auto; /* cancels inherited left:18px, otherwise left+right = full width */
   right: 16px;
   width: auto;
   height: auto;
@@ -440,7 +440,7 @@ input[type='range']::-moz-range-thumb {
   border-width: 0 1px 1px 0;
 }
 
-/* ---------------- CINÉMATIQUE ---------------- */
+/* ---------------- CINEMATIC ---------------- */
 .cinematic-caption {
   position: fixed;
   left: 0;
@@ -468,7 +468,7 @@ input[type='range']::-moz-range-thumb {
   z-index: 7;
   transition: opacity 0.45s ease-out;
 }
-/* Fondu de transition entre niveaux + paupières du réveil. */
+/* Fade transition between levels + waking eyelids. */
 .level-fade {
   position: fixed;
   inset: 0;
@@ -479,7 +479,7 @@ input[type='range']::-moz-range-thumb {
   transition: opacity 0.25s linear;
 }
 
-/* Screamer plein écran (visage d'Ansem). */
+/* Full-screen screamer (Ansem's face). */
 .screamer {
   position: fixed;
   inset: 0;
@@ -512,7 +512,7 @@ input[type='range']::-moz-range-thumb {
   100% { transform: translate(6px, 7px) scale(1.06); }
 }
 
-/* Sous-titre des répliques chuchotées. */
+/* Subtitle for whispered lines. */
 .subtitle {
   position: fixed;
   left: 0;
@@ -533,7 +533,7 @@ input[type='range']::-moz-range-thumb {
   opacity: 0;
 }
 
-/* Gros texte scénarisé (« RUN »). */
+/* Large scripted text ("RUN"). */
 .big-text {
   position: fixed;
   inset: 0;
@@ -552,7 +552,7 @@ input[type='range']::-moz-range-thumb {
   display: none;
 }
 
-/* Message géant et tremblant (fin du décompte). */
+/* Giant, shaking message (end of the countdown). */
 .big-message {
   position: fixed;
   inset: 0;
@@ -615,7 +615,7 @@ input[type='range']::-moz-range-thumb {
   margin-bottom: 20px;
 }
 
-/* Curseurs (santé mentale / volume) dans l'écran de pause. */
+/* Sliders (sanity / volume) in the pause screen. */
 .pause-slider {
   margin: 6px auto 18px;
   max-width: 300px;
@@ -665,7 +665,7 @@ input[type='range']::-moz-range-thumb {
   border-color: var(--bonk-dim);
 }
 
-/* Bouton wallet (Connect / adresse connectée) dans la nav. */
+/* Wallet button (Connect / connected address) in the nav. */
 .btn-wallet {
   display: inline-flex;
   align-items: center;
@@ -707,11 +707,11 @@ input[type='range']::-moz-range-thumb {
   place-items: center;
   z-index: 60;
   background: rgba(3, 3, 6, 0.92);
-  overflow: hidden; /* pas de scroll : la fenêtre est centrée dans l'écran */
+  overflow: hidden; /* no scroll: the window is centered on screen */
   padding: 24px;
 }
 .end-panel {
-  max-height: calc(100vh - 48px); /* tient toujours à l'écran ; scroll interne seulement si vraiment nécessaire */
+  max-height: calc(100vh - 48px); /* always fits on screen; internal scroll only if truly needed */
   overflow-y: auto;
 }
 .endscreen.lose {
@@ -774,7 +774,7 @@ input[type='range']::-moz-range-thumb {
   color: var(--exit);
   margin-bottom: 8px;
 }
-/* Invite de connexion wallet (écran de fin) quand aucun wallet n'est connecté. */
+/* Wallet connect prompt (end screen) when no wallet is connected. */
 .connect-prompt {
   display: flex;
   flex-direction: column;
@@ -834,7 +834,7 @@ input[type='range']::-moz-range-thumb {
 }
 
 /* ============================================================
-   LANDING / HUB  (page principale, thème horreur)
+   LANDING / HUB  (main page, horror theme)
    ============================================================ */
 .bonk {
   color: var(--bonk);
@@ -849,7 +849,7 @@ input[type='range']::-moz-range-thumb {
   color: var(--text);
 }
 
-/* Fond « labyrinthe 3D » du menu (canvas Three.js) sous le contenu. */
+/* Menu's "3D maze" background (Three.js canvas) beneath the content. */
 .landing-fx {
   position: fixed;
   inset: 0;
@@ -863,7 +863,7 @@ input[type='range']::-moz-range-thumb {
   inset: 0;
   width: 100%;
   height: 100%;
-  opacity: 0.96; /* fond du menu plus visible */
+  opacity: 0.96; /* menu background more visible */
 }
 .landing > section,
 .landing > footer {
@@ -874,7 +874,7 @@ input[type='range']::-moz-range-thumb {
   z-index: 3;
 }
 
-/* Bugs d'écran / scanlines + flash du visage d'Ansem. */
+/* Screen glitches / scanlines + Ansem's face flash. */
 .menu-scanlines {
   position: fixed;
   inset: 0;
@@ -947,7 +947,7 @@ input[type='range']::-moz-range-thumb {
   text-align: center;
   padding: 60px 22px 40px;
 }
-/* Premier écran du menu : titre + Play centrés, plein écran (le reste apparaît au scroll). */
+/* First menu screen: title + Play centered, full screen (the rest appears on scroll). */
 .landing-hero-min {
   min-height: calc(100vh - 64px);
   display: flex;
@@ -955,7 +955,7 @@ input[type='range']::-moz-range-thumb {
   align-items: center;
   justify-content: center;
   gap: 30px;
-  transform: translateY(-7vh); /* remonte légèrement le titre */
+  transform: translateY(-7vh); /* nudges the title up slightly */
 }
 .landing-scroll-hint {
   margin-top: 6px;
@@ -992,7 +992,7 @@ input[type='range']::-moz-range-thumb {
   font-size: 1rem;
 }
 
-/* Section « concept » : explique santé mentale = market cap. */
+/* "Concept" section: explains sanity = market cap. */
 .landing-concept {
   max-width: 860px;
   margin: 0 auto;
@@ -1118,8 +1118,8 @@ input[type='range']::-moz-range-thumb {
   width: 100%;
   height: 170px;
 }
-/* Contrat (CA du token de la sanity) - ligne compacte sous le titre : petit label + input
-   discret (cadre) avec l'adresse et un bouton copier, dans la charte du site (sombre + rouge). */
+/* Contract (CA of the sanity token), compact line under the title: small label + discreet
+   framed input with the address and a copy button, within the site's dark + red style. */
 .ca-wrap {
   display: flex;
   flex-wrap: wrap;
@@ -1329,7 +1329,7 @@ kbd {
 }
 
 /* ============================================================
-   HUD - ajouts (clés PEPE + statut lampe/boussole)
+   HUD additions (PEPE keys + lamp/compass status)
    ============================================================ */
 .hud-keys[hidden] {
   display: none;
@@ -1373,7 +1373,7 @@ kbd {
 }
 
 /* ============================================================
-   MONITEUR SANTÉ MENTALE (façon écran d'activité)
+   SANITY MONITOR (activity-screen style)
    ============================================================ */
 .mh-monitor {
   background: linear-gradient(#0a0e0f, #030506);
@@ -1419,7 +1419,7 @@ kbd {
   height: 300px;
 }
 
-/* Version compacte (HUD in-game). */
+/* Compact version (in-game HUD). */
 .mh-monitor.compact {
   padding: 7px;
   border-radius: 11px;
@@ -1443,7 +1443,7 @@ kbd {
   height: 132px;
 }
 
-/* Landing : le moniteur est LA pièce maîtresse, centré au milieu de l'écran. */
+/* Landing: the monitor is THE centerpiece, centered in the middle of the screen. */
 .landing-hero {
   min-height: calc(100vh - 68px);
   display: flex;
@@ -1464,7 +1464,7 @@ kbd {
   max-width: 620px;
 }
 
-/* HUD : moniteur épinglé en permanence en bas à droite. */
+/* HUD: monitor permanently pinned at bottom right. */
 .hud-monitor {
   position: absolute;
   right: 16px;
@@ -1477,11 +1477,11 @@ kbd {
 }
 
 /* ============================================================
-   REFONTE MENU - rang joueur, hero (charte + leaderboard), badges,
-   fenêtres de lore. (Complète/écrase les règles landing ci-dessus.)
+   MENU REDESIGN: player rank, hero (style guide + leaderboard), badges,
+   lore windows. (Completes/overrides the landing rules above.)
    ============================================================ */
 
-/* Puce « votre rang » dans la barre du haut. */
+/* "Your rank" chip in the top bar. */
 .rank-chip {
   display: flex;
   flex-direction: column;
@@ -1528,7 +1528,7 @@ kbd {
   font-style: italic;
 }
 
-/* Hero : le titre + la phrase + charte + leaderboard tiennent dans le 1er écran. */
+/* Hero: title + tagline + style guide + leaderboard fit within the 1st screen. */
 .landing-hero {
   gap: 20px;
   transform: none;
@@ -1547,8 +1547,8 @@ kbd {
 .hero-widgets {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
-  gap: 60px; /* charte et leaderboard davantage écartés (gauche/droite) */
-  width: min(1240px, 96vw); /* plus grands */
+  gap: 60px; /* style guide and leaderboard spaced further apart (left/right) */
+  width: min(1240px, 96vw); /* larger */
   align-items: stretch;
   text-align: left;
 }
@@ -1579,7 +1579,7 @@ kbd {
   .rank-chip-label { display: none; }
 }
 
-/* Icônes SVG génériques. */
+/* Generic SVG icons. */
 .ic {
   display: inline-block;
   vertical-align: -0.18em;
@@ -1604,7 +1604,7 @@ kbd {
   margin-right: 4px;
 }
 
-/* Badges (chips par chapitre franchi). */
+/* Badges (chips per chapter cleared). */
 .badge-chip {
   display: inline-flex;
   align-items: center;
@@ -1621,7 +1621,7 @@ kbd {
   vertical-align: 0;
 }
 
-/* Lignes de leaderboard « avancement » (badges + %). */
+/* "Progress" leaderboard rows (badges + %). */
 .lb-progress .lb-badges {
   display: inline-flex;
   gap: 3px;
@@ -1640,7 +1640,7 @@ kbd {
   border-radius: 8px;
 }
 
-/* Section explications (repliée depuis « How it works »). */
+/* Explanations section (collapsed from "How it works"). */
 .landing-how {
   max-width: 960px;
   margin: 0 auto;
@@ -1662,7 +1662,7 @@ kbd {
   padding: 18px 20px;
 }
 
-/* Fenêtres de lore / choix de niveau (en bas, dévoilées à la progression). */
+/* Lore windows / level select (at the bottom, revealed as you progress). */
 .landing-lore {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -1697,7 +1697,7 @@ kbd {
   line-height: 0;
   filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent, var(--bonk)) 55%, transparent));
 }
-/* Icônes des cartes marché (hausse = vert, baisse = rouge). */
+/* Market card icons (up = green, down = red). */
 .cf-up .cf-icon { color: var(--exit); }
 .cf-down .cf-icon { color: var(--blood); }
 .cf-icon { line-height: 0; }
@@ -1724,7 +1724,7 @@ kbd {
   margin-top: 6px;
 }
 
-/* Écran de fin : rappel du % atteint + badges gagnés. */
+/* End screen: reminder of % reached + badges earned. */
 .end-progress {
   display: flex;
   align-items: center;
@@ -1744,11 +1744,11 @@ kbd {
 }
 
 /* ============================================================
-   POLICE HORREUR (menu) + FENÊTRES type « Outlast » (charte + leaderboard)
+   HORROR FONT (menu) + "Outlast"-style WINDOWS (style guide + leaderboard)
    ============================================================ */
 
-/* Police horreur épaisse & dégoulinante (réf. image 1) sur les éléments proéminents du menu.
-   (Nosifer est haute : on donne de l'air aux line-height ; le titre est bien détaché du reste.) */
+/* Thick, dripping horror font (ref. image 1) on the menu's prominent elements.
+   (Nosifer is tall: line-height is given extra room so the title stays well separated from the rest.) */
 .landing-logo,
 .landing-title,
 .concept-kicker,
@@ -1762,7 +1762,7 @@ kbd {
 .landing-title {
   letter-spacing: 2px;
   line-height: 1.5;
-  margin-bottom: 30px; /* espace le titre du reste */
+  margin-bottom: 30px; /* spaces the title from the rest */
 }
 .concept-title {
   letter-spacing: 0.5px;
@@ -1786,7 +1786,7 @@ kbd {
   line-height: 1.4;
 }
 
-/* Police UI condensée (réf. image 2) pour les en-têtes de fenêtres / données. */
+/* Condensed UI font (ref. image 2) for window headers / data. */
 .win-title,
 .lb-title,
 .panel h2,
@@ -1794,7 +1794,7 @@ kbd {
   font-family: var(--font-ui);
 }
 
-/* --- Cadre « fenêtre » (charte + leaderboard) : coins équerres, bord fin, en-tête barré --- */
+/* --- "Window" frame (style guide + leaderboard): bracket corners, thin border, barred header --- */
 .win {
   position: relative;
   display: flex;
@@ -1814,7 +1814,7 @@ kbd {
   border-bottom: 1px solid rgba(150, 162, 172, 0.2);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0));
 }
-/* Coulures de sang sous la barre d'en-tête (effet dégoulinant des bords). */
+/* Blood drips under the header bar (dripping edge effect). */
 .win-head::after {
   content: '';
   position: absolute;
@@ -1854,7 +1854,7 @@ kbd {
   padding: 12px 14px;
   min-height: 0;
 }
-/* Équerres aux coins (comme les panneaux Outlast). */
+/* Corner brackets (like Outlast panels). */
 .win::before,
 .win::after {
   content: '';
@@ -1876,7 +1876,7 @@ kbd {
   border-width: 0 1px 1px 0;
 }
 
-/* Les deux fenêtres remplissent la rangée hero. */
+/* Both windows fill the hero row. */
 .hero-widgets .win {
   min-width: 0;
 }
@@ -1888,7 +1888,7 @@ kbd {
   max-height: 300px;
   overflow-y: auto;
 }
-/* Scroll conservé mais barre masquée (leaderboards du menu). */
+/* Scroll kept but bar hidden (menu leaderboards). */
 .leaderboard {
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE/Edge legacy */
@@ -1901,7 +1901,7 @@ kbd {
 .win-board .board-note {
   margin-top: 10px;
 }
-/* Lignes du leaderboard façon liste de réglages (libellés condensés, séparateurs fins). */
+/* Leaderboard rows styled like a settings list (condensed labels, thin separators). */
 .win-board .lb-progress li {
   border-bottom: 1px solid rgba(150, 162, 172, 0.14);
 }
@@ -1912,8 +1912,8 @@ kbd {
 }
 
 /* ============================================================
-   HUD IN-GAME : même direction artistique que le MENU
-   (police condensée Barlow, accent rouge, moniteur en « fenêtre »)
+   IN-GAME HUD: same art direction as the MENU
+   (condensed Barlow font, red accent, monitor as a "window")
    ============================================================ */
 .hud-timer,
 .hud-hint,
@@ -1937,7 +1937,7 @@ kbd {
   letter-spacing: 0.5px;
 }
 
-/* Le moniteur de santé mentale devient une FENÊTRE (cadre fin + équerres) comme dans le menu. */
+/* The sanity monitor becomes a WINDOW (thin frame + brackets) like in the menu. */
 .hud-monitor.mh-monitor.compact {
   padding: 0;
   border-radius: 0;
@@ -1985,13 +1985,13 @@ kbd {
 }
 
 /* ============================================================
-   MENU - VERSION MOBILE (barre du haut, hero, pas de débordement)
+   MENU: MOBILE VERSION (top bar, hero, no overflow)
    ============================================================ */
 .landing {
-  overflow-x: hidden; /* jamais de scroll horizontal */
+  overflow-x: hidden; /* never any horizontal scroll */
 }
 @media (max-width: 620px) {
-  /* Titre en haut à gauche retiré sur mobile. */
+  /* Title at top left removed on mobile. */
   .landing-logo {
     display: none;
   }
@@ -1999,7 +1999,7 @@ kbd {
     padding: 10px 12px;
     gap: 8px;
   }
-  /* Barre du haut : rang à gauche · son au milieu · How it works à droite. */
+  /* Top bar: rank on the left, sound in the middle, How it works on the right. */
   .landing-nav-right {
     width: 100%;
     gap: 6px;
@@ -2015,7 +2015,7 @@ kbd {
     font-size: 0.74rem;
     white-space: nowrap;
   }
-  /* Fenêtre des contrôles PC (tableau des touches) : inutile au tactile → masquée. */
+  /* PC controls window (key table): useless on touch, hidden. */
   .howto-block-controls {
     display: none;
   }
@@ -2040,12 +2040,12 @@ kbd {
 }
 
 /* ============================================================
-   CONTRÔLES TACTILES (mobile) - joystick, regard, boutons, pause
+   TOUCH CONTROLS (mobile): joystick, look, buttons, pause
    ============================================================ */
 .touch-controls {
   position: fixed;
   inset: 0;
-  z-index: 6; /* au-dessus du HUD (5), sous les overlays (10) */
+  z-index: 6; /* above the HUD (5), below the overlays (10) */
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -2055,7 +2055,7 @@ kbd {
   display: none;
 }
 
-/* Joystick flottant (apparaît sous le doigt, moitié gauche). */
+/* Floating joystick (appears under the finger, left half). */
 .touch-joy {
   position: fixed;
   width: clamp(84px, 26vmin, 128px);
@@ -2082,7 +2082,7 @@ kbd {
   box-shadow: 0 0 16px rgba(0, 0, 0, 0.55);
 }
 
-/* Boutons d'action (bas droite). */
+/* Action buttons (bottom right). */
 .touch-actions {
   position: fixed;
   right: max(16px, env(safe-area-inset-right));
@@ -2132,7 +2132,7 @@ kbd {
   box-shadow: 0 0 16px rgba(57, 255, 136, 0.4);
 }
 
-/* Bouton pause (haut gauche - remplace Échap). */
+/* Pause button (top left, replaces Escape). */
 .touch-pause {
   position: fixed;
   top: max(8px, env(safe-area-inset-top));
@@ -2150,7 +2150,7 @@ kbd {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* HUD adapté au tactile : plus d'indications de touches PC, agencement anti-chevauchement. */
+/* Touch-adapted HUD: no more PC key hints, anti-overlap layout. */
 .touch-mode .hud-controls {
   display: none;
 }
@@ -2169,7 +2169,7 @@ kbd {
 .touch-mode .mh-monitor.compact .mh-plot {
   height: clamp(52px, 12vmin, 82px);
 }
-/* Mini-carte PEPE (basse santé) : haut gauche sous la pause, réduite. */
+/* PEPE minimap (low sanity): top left below pause, shrunk. */
 .touch-mode .hud-minimap {
   top: 56px;
   left: max(8px, env(safe-area-inset-left));
@@ -2182,11 +2182,11 @@ kbd {
   height: clamp(92px, 22vmin, 128px);
 }
 
-/* Overlay « tournez l'appareil » : bloque le jeu en portrait (fallback iOS pour le paysage). */
+/* "Rotate device" overlay: blocks the game in portrait (iOS fallback for landscape). */
 .rotate-prompt {
   position: fixed;
   inset: 0;
-  z-index: 80; /* au-dessus de tout, même des overlays */
+  z-index: 80; /* above everything, even the overlays */
   display: none;
   align-items: center;
   justify-content: center;

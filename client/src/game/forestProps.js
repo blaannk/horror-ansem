@@ -2,13 +2,13 @@ import * as THREE from 'three';
 import { CELL } from '../config.js';
 import { makeRadialGlowTexture } from './textures.js';
 
-// Fabriques d'objets du niveau forêt : feu de camp (source de lumière + zone sûre) et
-// quelques meubles pour l'intérieur du chalet. Le niveau positionne/anime (flammes, lueur).
+// Object factories for the forest level: campfire (light source + safe zone) and
+// a few pieces of furniture for the chalet interior. The level positions/animates (flames, glow).
 
 const WOOD = (c = 0x3a2617) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.9 });
 
-// Feu de camp : bûches en tipi + braises + flammes (sprites additifs) + halo + PointLight
-// chaude. `flames`, `light`, `haloMat` sont animés par le niveau (vacillement).
+// Campfire: teepee logs + embers + flames (additive sprites) + halo + warm
+// PointLight. `flames`, `light`, `haloMat` are animated by the level (flicker).
 export function campfire() {
   const group = new THREE.Group();
 
@@ -28,14 +28,14 @@ export function campfire() {
     group.add(log);
   }
 
-  // Braises centrales (auto-éclairées).
+  // Central embers (self-lit).
   const emberMat = new THREE.MeshBasicMaterial({ color: 0xff6a1a, toneMapped: false });
   const ember = new THREE.Mesh(new THREE.SphereGeometry(0.4, 12, 10), emberMat);
   ember.position.y = 0.2;
   ember.scale.y = 0.45;
   group.add(ember);
 
-  // Flammes : sprites additifs empilés (jaune au cœur, orange autour).
+  // Flames: stacked additive sprites (yellow at the core, orange around).
   const glow = makeRadialGlowTexture();
   const flames = [];
   const flameColors = [0xff7a1a, 0xffb028, 0xffe070];
@@ -57,7 +57,7 @@ export function campfire() {
     flames.push({ sprite: s, mat, base: sc, y: s.position.y });
   }
 
-  // Grand halo diffus au sol : visible de loin à travers le brouillard (guide le joueur).
+  // Large diffuse ground halo: visible from afar through the fog (guides the player).
   const haloMat = new THREE.SpriteMaterial({
     map: glow,
     color: 0xff9030,
@@ -79,7 +79,7 @@ export function campfire() {
   return { group, light, flames, emberMat, haloMat, mats: [logMat, emberMat, haloMat] };
 }
 
-// Table basse en bois.
+// Low wooden table.
 export function chaletTable() {
   const group = new THREE.Group();
   const mat = WOOD(0x43301c);
@@ -95,7 +95,7 @@ export function chaletTable() {
   return group;
 }
 
-// Chaise simple.
+// Simple chair.
 export function chaletChair() {
   const group = new THREE.Group();
   const mat = WOOD(0x3a2817);
@@ -114,22 +114,22 @@ export function chaletChair() {
   return group;
 }
 
-// Lit du chalet (là où l'on se réveille) : cadre bois + matelas taché + oreiller.
-// Long axe le long de X ; le niveau tourne le groupe selon le mur.
+// Chalet bed (where you wake up): wood frame + stained mattress + pillow.
+// Long axis along X; the level rotates the group depending on the wall.
 export function chaletBed() {
   const group = new THREE.Group();
   const frameMat = WOOD(0x2e1f12);
   const fabric = new THREE.MeshStandardMaterial({ color: 0x6a6152, roughness: 1 });
   const dirty = new THREE.MeshStandardMaterial({ color: 0x33271a, roughness: 1 });
-  // Cadre.
+  // Frame.
   const frame = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.4, 1.2), frameMat);
   frame.position.y = 0.3;
   group.add(frame);
-  // Tête de lit.
+  // Headboard.
   const head = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.0, 1.2), frameMat);
   head.position.set(-1.1, 0.5, 0);
   group.add(head);
-  // Matelas + oreiller.
+  // Mattress + pillow.
   const mattress = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.24, 1.05), fabric);
   mattress.position.set(0.05, 0.6, 0);
   group.add(mattress);
@@ -140,7 +140,7 @@ export function chaletBed() {
   return group;
 }
 
-// Gamelle de BONK (le chien d'Ansem) : bol métallique cabossé avec un reste séché.
+// BONK's bowl (Ansem's dog): dented metal bowl with a dried-up leftover.
 export function dogBowl() {
   const group = new THREE.Group();
   const metal = new THREE.MeshStandardMaterial({ color: 0x565b60, roughness: 0.5, metalness: 0.6 });
@@ -160,7 +160,7 @@ export function dogBowl() {
   return group;
 }
 
-// Tas de bûches empilées (près de la cheminée).
+// Stack of piled-up logs (near the fireplace).
 export function woodPile() {
   const group = new THREE.Group();
   const logMat = WOOD(0x3a2617);
@@ -180,7 +180,7 @@ export function woodPile() {
   return group;
 }
 
-// Étagère murale avec bocaux/bouteilles crasseux.
+// Wall shelf with grimy jars/bottles.
 export function shelf() {
   const group = new THREE.Group();
   const wood = WOOD(0x2e1f12);
@@ -204,7 +204,7 @@ export function shelf() {
   return group;
 }
 
-// Tapis usé posé au sol.
+// Worn rug on the floor.
 export function rug() {
   const group = new THREE.Group();
   const outer = new THREE.Mesh(
@@ -223,7 +223,7 @@ export function rug() {
   return group;
 }
 
-// Tabouret à trois pieds.
+// Three-legged stool.
 export function stool() {
   const group = new THREE.Group();
   const mat = WOOD(0x3a2817);
@@ -239,7 +239,7 @@ export function stool() {
   return group;
 }
 
-// Lanterne : petite loupiote chaude (boîte émissive + PointLight faible).
+// Lantern: small warm light (emissive box + faint PointLight).
 export function lantern() {
   const group = new THREE.Group();
   const cage = new THREE.Mesh(
@@ -252,7 +252,7 @@ export function lantern() {
   return { group, light };
 }
 
-// Cheminée : âtre en pierre avec un feu intérieur (émissif + lumière chaude).
+// Fireplace: stone hearth with an interior fire (emissive + warm light).
 export function fireplace() {
   const group = new THREE.Group();
   const stone = new THREE.MeshStandardMaterial({ color: 0x2b2b30, roughness: 1 });
@@ -267,7 +267,7 @@ export function fireplace() {
   const mantle = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.3, 1.4), stone);
   mantle.position.set(0, 2.75, 0.5);
   group.add(mantle);
-  // Bûches + braises dans l'âtre.
+  // Logs + embers in the hearth.
   const logMat = new THREE.MeshStandardMaterial({ color: 0x2a1a0e, roughness: 0.95, emissive: 0x2a0d00, emissiveIntensity: 0.5 });
   const logGeo = new THREE.CylinderGeometry(0.12, 0.14, 1.1, 6);
   for (let i = 0; i < 3; i++) {
@@ -281,7 +281,7 @@ export function fireplace() {
   ember.position.set(0, 0.3, 0.4);
   group.add(ember);
 
-  // Flammes : sprites additifs (comme le feu de camp) - bien plus jolies qu'un cube.
+  // Flames: additive sprites (like the campfire), much nicer than a cube.
   const glow = makeRadialGlowTexture();
   const flames = [];
   const cols = [0xff7a1a, 0xffb028, 0xffe070];

@@ -1,20 +1,20 @@
-// Jetons de run signés (anti-triche léger sur le leaderboard).
+// Signed run tokens (lightweight anti-cheat for the leaderboard).
 //
-// Idée : le serveur émet, au DÉBUT d'une run (POST /api/run/start), un jeton signé (HMAC) qui
-// horodate le départ côté serveur. À la soumission du score, on vérifie :
-//   1. la signature (le client ne peut pas fabriquer un jeton) ;
-//   2. la fraîcheur (non expiré, pas dans le futur) ;
-//   3. la cohérence temporelle : le temps de jeu annoncé ne peut pas dépasser le temps réel
-//      écoulé depuis le départ (on ne finit pas un run « avant » de l'avoir joué) ;
-//   4. l'usage unique (anti-rejeu) - géré via la base (consumeRunNonce).
+// Idea: at the START of a run (POST /api/run/start), the server issues a signed (HMAC) token
+// that timestamps the start server-side. When the score is submitted, we check:
+//   1. the signature (the client can't forge a token);
+//   2. freshness (not expired, not in the future);
+//   3. temporal consistency: the reported play time can't exceed the real elapsed time
+//      since the start (you can't finish a run "before" having played it);
+//   4. single use (anti-replay), handled via the database (consumeRunNonce).
 //
-// Ce n'est PAS une preuve absolue (un jeu 100 % client reste falsifiable en théorie), mais ça
-// élimine la fabrication triviale de scores (POST direct) et le rejeu du même run.
+// This is NOT absolute proof (a 100% client-side game remains theoretically forgeable), but it
+// eliminates trivial score fabrication (direct POST) and replaying the same run.
 
 import crypto from 'node:crypto';
 
-// Secret de signature. Idéalement fixé via RUN_TOKEN_SECRET (stable entre redémarrages).
-// À défaut : secret aléatoire par démarrage → les jetons ne survivent pas à un restart serveur.
+// Signing secret. Ideally set via RUN_TOKEN_SECRET (stable across restarts).
+// Otherwise: a random secret per boot, meaning tokens don't survive a server restart.
 const ENV_SECRET = process.env.RUN_TOKEN_SECRET || null;
 let bootSecret = null;
 function secret() {
@@ -22,24 +22,24 @@ function secret() {
   if (!bootSecret) {
     bootSecret = crypto.randomBytes(32).toString('hex');
     console.warn(
-      '[runToken] RUN_TOKEN_SECRET absent → secret aléatoire par démarrage ' +
-        '(les jetons de run ne survivent pas à un redémarrage).'
+      '[runToken] RUN_TOKEN_SECRET missing, using a random per-boot secret ' +
+        '(run tokens will not survive a restart).'
     );
   }
   return bootSecret;
 }
 
-// Vérification exigée uniquement si un secret stable est configuré (rétro-compatible sinon).
+// Verification is only enforced if a stable secret is configured (backward-compatible otherwise).
 export const requireRunToken = () => !!ENV_SECRET;
 
-const MAX_AGE_MS = 3 * 60 * 60 * 1000; // 3 h : au-delà, jeton périmé
-const FUTURE_SKEW_MS = 60_000; // tolérance si l'horloge du serveur a bougé
+const MAX_AGE_MS = 3 * 60 * 60 * 1000; // 3h: beyond this, token is stale
+const FUTURE_SKEW_MS = 60_000; // tolerance in case the server clock drifted
 
 function sign(payloadB64) {
   return crypto.createHmac('sha256', secret()).update(payloadB64).digest('base64url');
 }
 
-// Émet un nouveau jeton de run. runId = nonce (usage unique). startedAt = départ serveur (ms).
+// Issues a new run token. runId = nonce (single use). startedAt = server start time (ms).
 export function issueRunToken() {
   const nonce = crypto.randomBytes(16).toString('hex');
   const payload = { n: nonce, t: Date.now() };
@@ -47,7 +47,7 @@ export function issueRunToken() {
   return { runId: nonce, token: `${b64}.${sign(b64)}`, startedAt: payload.t };
 }
 
-// Vérifie un jeton. Renvoie { ok, reason?, nonce?, startedAt? }.
+// Verifies a token. Returns { ok, reason?, nonce?, startedAt? }.
 export function verifyRunToken(token) {
   if (typeof token !== 'string' || !token.includes('.')) return { ok: false, reason: 'absent' };
   const [b64, sig] = token.split('.');

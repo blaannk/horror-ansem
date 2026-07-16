@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import { issueChallenge, verifyWalletSignature, issueSession } from '../auth.js';
 
-// Authentification wallet Phantom (Solana). Voir auth.js pour le détail du flux.
+// Phantom wallet (Solana) authentication. See auth.js for flow details.
 const router = Router();
 
-// POST /api/auth/nonce  { publicKey } → { nonce, message } à faire signer par le wallet.
+// POST /api/auth/nonce  { publicKey } → { nonce, message } to be signed by the wallet.
 router.post('/auth/nonce', (req, res) => {
   const { publicKey } = req.body ?? {};
   const challenge = issueChallenge(publicKey);
@@ -12,7 +12,7 @@ router.post('/auth/nonce', (req, res) => {
   res.json(challenge);
 });
 
-// POST /api/auth/verify  { publicKey, signature, nonce } → { token, wallet } si la signature est valide.
+// POST /api/auth/verify  { publicKey, signature, nonce } → { token, wallet } if the signature is valid.
 router.post('/auth/verify', (req, res) => {
   const { publicKey, signature, nonce } = req.body ?? {};
   const result = verifyWalletSignature({ publicKey, signature, nonce });

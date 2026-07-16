@@ -7,23 +7,23 @@ import { makeMachinePanelTexture, makeCeilingTexture } from './textures.js';
 import { trophyProp } from './props.js';
 
 // =============================================================
-// Salle finale - LA SORTIE : après avoir traversé le portail du niveau 3, le joueur arrive dans
-// une pièce SPHÉRIQUE (même skin « machine » que le niveau 3 mais bien éclairée), avec un trophée
-// sur un piédestal au centre. Interagir (E) avec le trophée termine le jeu (écran de victoire).
+// Final room - THE EXIT: after going through the level 3 portal, the player arrives in
+// a SPHERICAL room (same "machine" skin as level 3 but well lit), with a trophy
+// on a pedestal at the center. Interacting (E) with the trophy ends the game (victory screen).
 // =============================================================
 export class VictoryLevel extends Level {
   build() {
     this.maze = new Maze(VICTORY_LAYOUT);
     this.monsterMode = 'none';
     this.portal = false;
-    this.feasibleSanity = 0; // aucun danger ici
+    this.feasibleSanity = 0; // no danger here
     this.objective = '';
 
     const g = this.group;
-    const center = this.maze.cellToWorld(4, 4); // centre de la pièce
+    const center = this.maze.cellToWorld(4, 4); // room center
     this.center = center;
 
-    // Coque sphérique (skin « machine » du niveau 3, éclaircie), vue de l'intérieur.
+    // Spherical shell (level 3's "machine" skin, lightened), viewed from the inside.
     const wallTex = makeMachinePanelTexture();
     const sphereMat = new THREE.MeshStandardMaterial({ map: wallTex, color: 0x8a8f98, roughness: 0.8, metalness: 0.4, side: THREE.BackSide });
     const sphere = new THREE.Mesh(new THREE.SphereGeometry(26, 40, 30), sphereMat);
@@ -31,7 +31,7 @@ export class VictoryLevel extends Level {
     g.add(sphere);
     this.track(sphereMat, sphere.geometry);
 
-    // Sol clair.
+    // Light floor.
     const floorTex = makeCeilingTexture();
     const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, color: 0x6a6e76, roughness: 0.9 });
     const floor = new THREE.Mesh(new THREE.CircleGeometry(24, 48), floorMat);
@@ -40,7 +40,7 @@ export class VictoryLevel extends Level {
     g.add(floor);
     this.track(floorTex, floorMat, floor.geometry);
 
-    // Piédestal + trophée au centre.
+    // Pedestal + trophy at the center.
     const pedMat = new THREE.MeshStandardMaterial({ color: 0x2a2d33, roughness: 0.7, metalness: 0.5 });
     const ped = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.4, 1.2, 24), pedMat);
     ped.position.set(center.x, 0.6, center.z);
@@ -52,7 +52,7 @@ export class VictoryLevel extends Level {
     this.trophy = tr;
     this.trophyPos = { x: center.x, z: center.z };
 
-    // Éclairage vif (contraste avec la pénombre du niveau 3).
+    // Bright lighting (contrast with level 3's dimness).
     const key = new THREE.PointLight(0xfff0d8, 3, 60, 1.4);
     key.position.set(center.x, 12, center.z);
     g.add(key);
@@ -68,7 +68,7 @@ export class VictoryLevel extends Level {
   }
 
   enter(game) {
-    // Réinitialise la pénombre héritée du niveau 3 : pièce CLAIRE, sans brouillard épais.
+    // Resets the dimness inherited from level 3: LIGHT room, no thick fog.
     game.scene.background = new THREE.Color(0x14161c);
     game.scene.fog = new THREE.FogExp2(0x14161c, 0.012);
     game.scene.traverse((o) => {
@@ -91,7 +91,7 @@ export class VictoryLevel extends Level {
     }
   }
 
-  // Interaction « E » sur le trophée → fin du jeu.
+  // "E" interaction on the trophy: ends the game.
   onInteract(game) {
     if (this.done) return;
     const cam = game.camera.position;

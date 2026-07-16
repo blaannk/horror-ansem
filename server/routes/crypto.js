@@ -1,21 +1,21 @@
 import { Router } from 'express';
 
-// Scaffold pour la future intégration BONK / wallet (Solana).
-// Tout est désactivé pour l'instant - ces routes servent de points d'ancrage.
+// Scaffold for the future BONK / wallet (Solana) integration.
+// Everything is disabled for now, these routes serve as anchor points.
 
 const router = Router();
 
-// GET /api/crypto/status - état de l'intégration
+// GET /api/crypto/status - integration status
 router.get('/crypto/status', (_req, res) => {
-  // Ticker affiché sur la landing (« $<ticker> »). Paramétrable via l'env, défaut « BONK ».
+  // Ticker shown on the landing page ("$<ticker>"). Configurable via env, default "BONK".
   const ticker = (process.env.TOKEN_TICKER || 'BONK').trim() || 'BONK';
   res.json({
     enabled: false,
     chain: 'solana',
     token: ticker,
     ticker,
-    // Adresse du contrat affichée sur la page d'accueil. Par défaut, le mint qui pilote la
-    // santé mentale (TOKEN_MINT) ; BONK_ADDRESS peut le surcharger si besoin.
+    // Contract address shown on the home page. Defaults to the mint that drives
+    // sanity (TOKEN_MINT); BONK_ADDRESS can override it if needed.
     address: process.env.BONK_ADDRESS || process.env.TOKEN_MINT || 'TBA',
     features: {
       walletConnect: false,

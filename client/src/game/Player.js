@@ -2,13 +2,13 @@ import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 import { CELL, EYE_HEIGHT, PLAYER_RADIUS, GRAVITY, JUMP_VEL, CROUCH_EYE, PLAYER_CROUCH_SPEED } from '../config.js';
 
-// Joueur première personne : PointerLockControls pour la vue, WASD pour le déplacement,
-// sprint, SAUT (Espace) + ACCROUPI (Ctrl/C) avec gravité, et collisions glissantes.
-// Le « terrain » (optionnel, fourni par un niveau) donne la hauteur du sol, les plafonds bas
-// (à ramper) et les trous (à sauter) ; sans terrain → sol plat (niveaux 1-2 inchangés).
+// First-person player: PointerLockControls for the view, WASD for movement,
+// sprint, JUMP (Space) + CROUCH (Ctrl/C) with gravity, and sliding collisions.
+// The "terrain" (optional, provided by a level) gives floor height, low ceilings
+// (to crawl under) and pits (to jump over); without terrain, flat floor (levels 1-2 unchanged).
 
-const STEP_UP = 0.4; // marche max franchie sans sauter
-const PIT_RESET_Y = -2.5; // sous ce niveau on est tombé dans un trou → réinit
+const STEP_UP = 0.4; // max step height crossed without jumping
+const PIT_RESET_Y = -2.5; // below this level we've fallen into a pit, reset
 
 export class Player {
   constructor(camera, domElement, maze, config) {
@@ -20,23 +20,23 @@ export class Player {
     this.velocity = new THREE.Vector3();
     this.sprinting = false;
     this.moving = false;
-    this.speedMult = 1; // réglé par Game selon la santé mentale (haute santé → plus rapide)
+    this.speedMult = 1; // set by Game based on sanity (high sanity, faster)
 
-    this.terrain = null; // interface { floorAt, ceilLow, isPit } fournie par un niveau (sinon plat)
-    this.feetY = 0; // niveau des pieds (gravité)
+    this.terrain = null; // interface { floorAt, ceilLow, isPit } provided by a level (otherwise flat)
+    this.feetY = 0; // feet level (gravity)
     this.vy = 0;
     this.onGround = true;
     this.crouching = false;
     this.eyeHeight = EYE_HEIGHT;
-    this.lastSafe = null; // dernière position au sol sûre (réinit après une chute)
+    this.lastSafe = null; // last safe ground position (reset after a fall)
     this._jump = false;
     this._spaceDown = false;
 
     this.keys = { forward: false, back: false, left: false, right: false, sprint: false, crouch: false };
 
-    // --- Entrée tactile (mobile) ---
-    // touchMode : quand vrai, update() tourne sans pointer-lock (piloté par TouchControls).
-    // analog : { strafe, forward } dans [-1..1] (strafe +1 = droite, forward +1 = avant).
+    // --- Touch input (mobile) ---
+    // touchMode: when true, update() runs without pointer-lock (driven by TouchControls).
+    // analog: { strafe, forward } in [-1..1] (strafe +1 = right, forward +1 = forward).
     this.touchMode = false;
     this.analog = null;
     this.analogSprint = false;
@@ -45,20 +45,20 @@ export class Player {
     this.#bindKeys();
   }
 
-  // Vecteur de déplacement analogique (joystick). strafe/forward ∈ [-1..1].
+  // Analog movement vector (joystick). strafe/forward in [-1..1].
   setMove(strafe, forward) {
     this.analog = { strafe, forward };
-    this.analogSprint = Math.hypot(strafe, forward) > 0.92; // poussée à fond = sprint
+    this.analogSprint = Math.hypot(strafe, forward) > 0.92; // full push = sprint
   }
   clearMove() {
     this.analog = null;
     this.analogSprint = false;
   }
-  // Saut déclenché par un bouton tactile (consommé au prochain update, comme la touche Espace).
+  // Jump triggered by a touch button (consumed on the next update, like the Space key).
   jump() {
     this._jump = true;
   }
-  // Accroupi en bascule (bouton tactile).
+  // Crouch toggle (touch button).
   setCrouch(on) {
     this.keys.crouch = !!on;
   }
@@ -73,7 +73,7 @@ export class Player {
     return this.terrain?.isPit ? this.terrain.isPit(col, row) : false;
   }
 
-  // Change de labyrinthe (transition de niveau) et replace le joueur à son point de départ.
+  // Changes maze (level transition) and puts the player back at their starting point.
   setMaze(maze) {
     this.maze = maze;
     const start = maze.playerSpawn || maze.spawn;
@@ -95,20 +95,20 @@ export class Player {
     document.addEventListener('keyup', this._onKeyUp);
   }
 
-  // On se base sur la LETTRE tapée (e.key) → indépendant de la disposition AZERTY/QWERTY.
-  // Avancer : W ou Z · Gauche : Q ou A · Reculer : S · Droite : D · Saut : Espace · Accroupi : Ctrl/C.
+  // We key off the typed LETTER (e.key), independent of AZERTY/QWERTY layout.
+  // Forward: W or Z, Left: Q or A, Back: S, Right: D, Jump: Space, Crouch: Ctrl/C.
   #setKey(e, down) {
     const k = (e.key || '').toLowerCase();
     const c = e.code;
     if (k === 'z' || k === 'w' || c === 'ArrowUp') this.keys.forward = down;
     else if (k === 's' || c === 'ArrowDown') this.keys.back = down;
-    // Gauche/droite VOLONTAIREMENT inversées (cf. panneau de contrôles mural).
+    // Left/right DELIBERATELY swapped (see wall controls panel).
     else if (k === 'q' || k === 'a' || c === 'ArrowLeft') this.keys.right = down;
     else if (k === 'd' || c === 'ArrowRight') this.keys.left = down;
     else if (k === 'shift') this.keys.sprint = down;
     else if (k === 'control' || k === 'c') this.keys.crouch = down;
     else if (c === 'Space' || k === ' ') {
-      if (down && !this._spaceDown) this._jump = true; // front montant → un saut par appui
+      if (down && !this._spaceDown) this._jump = true; // rising edge, one jump per press
       this._spaceDown = down;
     }
   }
@@ -117,7 +117,7 @@ export class Player {
     return this.maze.worldToCell(this.camera.position.x, this.camera.position.z);
   }
 
-  // Collision de base : le joueur est un cercle de rayon PLAYER_RADIUS vs murs voisins.
+  // Basic collision: the player is a circle of radius PLAYER_RADIUS vs. neighboring walls.
   #collides(x, z) {
     if (!this.maze) return false;
     const { col, row } = this.maze.worldToCell(x, z);
@@ -128,7 +128,7 @@ export class Player {
         const rr = row + dr;
         if (!this.maze.isWall(c, rr)) continue;
         const { x: cx, z: cz } = this.maze.cellToWorld(c, rr);
-        // wallInset (terrain niveau 3) : « épaissit » les murs → couloirs plus étroits.
+        // wallInset (level 3 terrain): "thickens" the walls, making corridors narrower.
         const half = CELL / 2 + (this.terrain?.wallInset || 0);
         const nx = Math.max(cx - half, Math.min(x, cx + half));
         const nz = Math.max(cz - half, Math.min(z, cz + half));
@@ -140,13 +140,13 @@ export class Player {
     return false;
   }
 
-  // Collision étendue : murs + plafond bas (si debout) + rebord trop haut (si pas encore sauté).
+  // Extended collision: walls + low ceiling (if standing) + ledge too high (if not yet jumped).
   #blocked(x, z) {
     if (this.#collides(x, z)) return true;
     const { col, row } = this.maze.worldToCell(x, z);
-    if (this.#ceilLow(col, row) && !this.crouching) return true; // conduit bas → il faut ramper
+    if (this.#ceilLow(col, row) && !this.crouching) return true; // low duct, must crawl
     const floor = this.#floorAt(col, row);
-    if (!this.#isPit(col, row) && floor > this.feetY + STEP_UP) return true; // rebord → il faut sauter
+    if (!this.#isPit(col, row) && floor > this.feetY + STEP_UP) return true; // ledge, must jump
     return false;
   }
 
@@ -162,7 +162,7 @@ export class Player {
   }
 
   update(dt) {
-    // Desktop : piloté par le pointer-lock. Mobile : par TouchControls (touchMode).
+    // Desktop: driven by pointer-lock. Mobile: by TouchControls (touchMode).
     if (!this.controls.isLocked && !this.touchMode) {
       this.moving = false;
       this._jump = false;
@@ -173,14 +173,14 @@ export class Player {
     const pos = this.camera.position;
     const cell = this.maze.worldToCell(pos.x, pos.z);
 
-    // Accroupi : forcé sous un plafond bas ; sinon selon la touche. Hauteur des yeux lissée.
+    // Crouch: forced under a low ceiling; otherwise follows the key. Eye height is smoothed.
     this.crouching = this.keys.crouch || this.#ceilLow(cell.col, cell.row);
     const targetEye = this.crouching ? CROUCH_EYE : EYE_HEIGHT;
     this.eyeHeight += (targetEye - this.eyeHeight) * Math.min(1, dt * 12);
 
-    // Direction d'entrée (repère caméra horizontal). Au tactile : joystick analogique ;
-    // au clavier : touches booléennes. inputR positif = vecteur « right » interne (cf. desktop),
-    // donc un strafe joystick vers la droite correspond à inputR = -strafe.
+    // Input direction (horizontal camera frame). On touch: analog joystick;
+    // on keyboard: boolean keys. Positive inputR is the internal "right" vector (cf. desktop),
+    // so a joystick strafe to the right corresponds to inputR = -strafe.
     let inputF, inputR;
     if (this.analog) {
       inputF = this.analog.forward;
@@ -206,14 +206,14 @@ export class Player {
     dir.addScaledVector(right, inputR);
     if (dir.lengthSq() > 0) dir.normalize();
 
-    // Déplacement horizontal glissant (axe par axe).
+    // Sliding horizontal movement (axis by axis).
     const step = speed * dt;
     const nextX = pos.x + dir.x * step;
     if (!this.#blocked(nextX, pos.z)) pos.x = nextX;
     const nextZ = pos.z + dir.z * step;
     if (!this.#blocked(pos.x, nextZ)) pos.z = nextZ;
 
-    // Vertical : saut + gravité + atterrissage sur le sol de la cellule courante.
+    // Vertical: jump + gravity + landing on the current cell's floor.
     const here = this.maze.worldToCell(pos.x, pos.z);
     const floor = this.#floorAt(here.col, here.row);
     if (this._jump) {
@@ -233,7 +233,7 @@ export class Player {
       this.onGround = false;
     }
 
-    // Chute dans un trou → réinit au dernier sol sûr ; sinon mémorise ce sol sûr.
+    // Falling into a pit resets to the last safe ground; otherwise remember this safe ground.
     if (this.feetY < PIT_RESET_Y) {
       this.#respawnSafe();
     } else if (this.onGround && !this.#isPit(here.col, here.row)) {

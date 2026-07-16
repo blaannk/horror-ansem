@@ -1,6 +1,6 @@
-// Icônes SVG inline (monochromes, dessinées via currentColor) - remplacent les emojis du menu
-// pour un rendu plus stylé et cohérent avec le thème horreur/crypto. Chaque icône hérite de la
-// couleur du texte parent ; on la colore donc en CSS (var(--bonk), var(--accent)…).
+// Inline SVG icons (monochrome, drawn via currentColor) - replace the menu emojis
+// for a more stylized look consistent with the horror/crypto theme. Each icon inherits the
+// parent text color, so it's colored via CSS (var(--bonk), var(--accent)...).
 
 const SVGS = {
   skull:
