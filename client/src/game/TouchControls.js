@@ -8,12 +8,14 @@ const LOOK_SENS = 0.0042; // look sensitivity (rad per pixel)
 const MAX_PITCH = Math.PI / 2 - 0.05;
 
 export function isTouchDevice() {
+  // Only treat the device as mobile when its PRIMARY input is a touch screen
+  // (coarse pointer, no hover) — i.e. phones/tablets. Touch-capable laptops and
+  // Windows desktops report maxTouchPoints > 0 / ontouchstart, but their primary
+  // input is keyboard+mouse, so they must stay on the pointer-lock controls.
   try {
-    return (
-      window.matchMedia?.('(pointer: coarse)').matches ||
-      'ontouchstart' in window ||
-      navigator.maxTouchPoints > 0
-    );
+    if (window.matchMedia?.('(hover: none) and (pointer: coarse)').matches) return true;
+    // Fallback for browsers without interaction media queries.
+    return /Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent) && navigator.maxTouchPoints > 0;
   } catch {
     return false;
   }
